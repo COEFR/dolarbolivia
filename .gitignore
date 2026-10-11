@@ -1,0 +1,34 @@
+# --- secretos: NUNCA suben ---
+.env
+.env.*
+*.env
+.token_github
+.token_*
+*_key.txt
+*credenciales*
+*secret*
+
+# --- datos del sistema (grandes y privados) ---
+logs/
+cache/
+*.log
+cache_tx_*.json
+tokens_cache.json
+*_results.json
+state.json
+seen*.json
+
+# --- dependencias y basura ---
+venv/
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+
+# --- build del sitio: se regenera con dolarbackup/build/build.sh ---
+dolarbackup/build/src/
+dolarbackup/build/dist/
+dolarbackup/build/public/
+dolarbackup/build/node_modules/
+dolarbackup/build/package-lock.json

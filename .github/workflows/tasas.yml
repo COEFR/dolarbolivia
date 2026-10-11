@@ -1,0 +1,45 @@
+name: tasas
+
+# Actualiza el precio del dólar cada 10 minutos y lo deja como archivo estático en el repo:
+# así el sitio vive en GitHub Pages, sin VPS y sin costo.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - "tools/tasas.py"
+      - ".github/workflows/tasas.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  tasas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Traer cotizaciones
+        run: python tools/tasas.py
+      - name: Guardar en el repo
+        run: |
+          git config user.name "DolarBolivia"
+          git config user.email "bot@users.noreply.github.com"
+          git add docs/api/rates docs/history.json
+          if git diff --cached --quiet; then
+            echo "sin cambios"
+            exit 0
+          fi
+          git commit -m "tasas $(date -u '+%Y-%m-%d %H:%M UTC')"
+          # rebase + reintento: si alguien empujó mientras corría, el push directo se rechaza
+          for i in 1 2 3; do
+            if git pull --rebase --autostash origin main && git push; then
+              echo "tasas guardadas"
+              break
+            fi
+            echo "reintento $i..."
+            sleep 5
+          done

@@ -123,7 +123,7 @@ def main():
     # (formato: fecha_iso,compra,venta). De acá sale el gráfico USDT/BOB estilo TradingView:
     # tools/historial.py lo agrupa en velas de 15 min y lo publica en /api/historial.json.
     try:
-        ruta_csv = os.path.join(BASE, "data", "historial_p2p.csv")
+        ruta_csv = os.path.join(AQUI, "data", "historial_p2p.csv")
         os.makedirs(os.path.dirname(ruta_csv), exist_ok=True)
         marca = ahora.strftime("%Y-%m-%dT%H:%M")
         ultima = ""

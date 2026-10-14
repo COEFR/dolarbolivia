@@ -70,6 +70,39 @@ def importar_csv_ajeno(ruta_csv, salida_csv):
     return nuevos
 
 
+def rellenar_huecos(filas, paso_min=30, max_horas=24 * 200):
+    """Rellena los saltos grandes entre mediciones consecutivas.
+
+    El histórico es prestado: termina en mayo de 2026 y después sigue la recolección propia,
+    que arranca recién ahora. En el medio hay un hueco de meses. Sin rellenarlo, el gráfico
+    mostraba un salto al vacío y los rangos cortos (1D / 1S / 1M) salían VACÍOS.
+    Se rellena con el precio de la medición anterior, que es lo único que sabemos: no
+    inventamos ondulación, solo evitamos el pozo. Pasos de 30 min (con 15 serían 15.000
+    velas y el JSON pesaría el triple).
+    """
+    if len(filas) < 2:
+        return filas
+    salida = [filas[0]]
+    rellenadas = 0
+    tope = max_horas * 3600
+    for i in range(1, len(filas)):
+        t0, c0, v0 = filas[i - 1]
+        t1 = filas[i][0]
+        salto = t1 - t0
+        if salto > paso_min * 60 * 2 and salto <= tope:
+            t = t0 + paso_min * 60
+            while t < t1:
+                salida.append((t, c0, v0))
+                rellenadas += 1
+                t += paso_min * 60
+        elif salto > tope:
+            print(f"  (salto de {salto/86400:.0f} días: demasiado grande, no se rellena)")
+        salida.append(filas[i])
+    if rellenadas:
+        print(f"  rellenados {rellenadas} huecos de {paso_min} min")
+    return salida
+
+
 def agrupar(filas, minutos=15):
     """Agrupa en velas OHLC reales: open/high/low/close de cada intervalo."""
     velas = {}
@@ -110,6 +143,7 @@ def main():
 
     filas = leer_csv(CSV)
     print(f"mediciones totales: {len(filas)}")
+    filas = rellenar_huecos(filas)
     if not filas:
         print("(sin datos todavía: el reloj los va llenando)")
         return 1

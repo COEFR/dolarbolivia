@@ -1,5 +1,1 @@
-<<<<<<< HEAD
-{"parallel": {"buy": 11.87, "sell": 11.83, "compra": 11.87, "venta": 11.83, "buyAvg": 11.87, "sellAvg": 11.83, "buyCount": 15, "sellCount": 15}, "official": {"buyRate": 11.7, "sellRate": 11.7, "rate": 11.7}, "timestamp": "2026-10-14T18:40:12.384336+00:00", "status": "live", "fuente": "DolarBlueBolivia"}
-=======
-{"parallel": {"buy": 11.87, "sell": 11.83, "compra": 11.87, "venta": 11.83, "buyAvg": 11.87, "sellAvg": 11.83, "buyCount": 15, "sellCount": 15}, "official": {"buyRate": 11.7, "sellRate": 11.7, "rate": 11.7}, "timestamp": "2026-10-14T18:40:27.863279+00:00", "status": "live", "fuente": "DolarBlueBolivia"}
->>>>>>> 747df6a (estado del proyecto)
+{"parallel": {"buy": 11.87, "sell": 11.83, "compra": 11.87, "venta": 11.83, "buyAvg": 11.87, "sellAvg": 11.83, "buyCount": 15, "sellCount": 15}, "official": {"buyRate": 11.7, "sellRate": 11.7, "rate": 11.7}, "timestamp": "2026-10-14T18:45:11.188724+00:00", "status": "live", "fuente": "DolarBlueBolivia"}

@@ -70,14 +70,15 @@ def importar_csv_ajeno(ruta_csv, salida_csv):
     return nuevos
 
 
-def rellenar_huecos(filas, paso_min=15, horas_atras=24 * 7):
+def rellenar_huecos(filas, paso_min=15, horas_atras=24):
     """Rellena SOLO los últimos días, con el precio actual.
 
     Dos reglas, las dos aprendidas a golpes:
 
-    1. Solo se rellena la cola reciente (por defecto 7 días). El hueco de 5 meses NO se
-       rellena: no sabemos qué pasó en el medio, y hacerlo con el precio de mayo dibujaba
-       una caída falsa de 9,87 a 11,87 que parecía un desplome del mercado.
+    1. Solo se rellena el último día. El hueco de 5 meses NO se rellena: no sabemos qué pasó
+       en el medio, y rellenarlo con un solo precio dibujaba cientos de velas PLANAS (todas
+       iguales), que es peor que un espacio vacío — el gráfico mostraba una línea chata en
+       lugar de velas verdes y rojas.
 
     2. El relleno usa el ÚLTIMO precio conocido (el de ahora), no el de la última medición
        histórica. Antes usaba el de mayo (9,87) y el gráfico mostraba ese precio como actual.

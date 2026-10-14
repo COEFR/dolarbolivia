@@ -45,7 +45,10 @@ type Vela = { time: number; open: number; high: number; low: number; close: numb
 export const PriceChart: React.FC<Props> = ({ data }) => {
   const caja = useRef<HTMLDivElement | null>(null);
   const [velas, setVelas] = useState<Vela[]>([]);
-  const [period, setPeriod] = useState<Period>('1M');
+  // Arranca en 1A a propósito: los rangos cortos sólo tienen las mediciones propias
+  // (una por corrida, desde ayer), así que salen planas. El 1A muestra el histórico
+  // completo, que sí tiene velas con movimiento. En unas semanas los cortos se llenan solos.
+  const [period, setPeriod] = useState<Period>('1A');
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
   const [leyenda, setLeyenda] = useState<Vela | null>(null);
   const [variacion, setVariacion] = useState<number | null>(null);

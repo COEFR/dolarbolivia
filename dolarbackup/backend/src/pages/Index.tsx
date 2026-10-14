@@ -42,6 +42,10 @@ const Index: React.FC = () => {
         <CurrencyTable parallelRate={data.parallel.sell} />
         <Calculator parallelBuy={data.parallel.buy} parallelSell={data.parallel.sell} officialRate={data.official.rate} />
         <PlatformComparison platforms={data.platforms} />
+        {/* Gráfico USDT/BOB estilo TradingView: el componente estaba importado pero nunca se
+            dibujaba, así que el sitio mostraba la gráfica vieja (que inventaba los datos con
+            Math.random). Ahora sí se renderiza, con las 34.000 velas reales. */}
+        <PriceChart data={data} />
         <section className="py-8">
           <div className="section-label">noticias</div>
           <NewsSection />

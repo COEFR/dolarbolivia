@@ -70,36 +70,41 @@ def importar_csv_ajeno(ruta_csv, salida_csv):
     return nuevos
 
 
-def rellenar_huecos(filas, paso_min=30, max_horas=24 * 200):
-    """Rellena los saltos grandes entre mediciones consecutivas.
+def rellenar_huecos(filas, paso_min=15, horas_atras=24 * 7):
+    """Rellena SOLO los últimos días, con el precio actual.
 
-    El histórico es prestado: termina en mayo de 2026 y después sigue la recolección propia,
-    que arranca recién ahora. En el medio hay un hueco de meses. Sin rellenarlo, el gráfico
-    mostraba un salto al vacío y los rangos cortos (1D / 1S / 1M) salían VACÍOS.
-    Se rellena con el precio de la medición anterior, que es lo único que sabemos: no
-    inventamos ondulación, solo evitamos el pozo. Pasos de 30 min (con 15 serían 15.000
-    velas y el JSON pesaría el triple).
+    Dos reglas, las dos aprendidas a golpes:
+
+    1. Solo se rellena la cola reciente (por defecto 7 días). El hueco de 5 meses NO se
+       rellena: no sabemos qué pasó en el medio, y hacerlo con el precio de mayo dibujaba
+       una caída falsa de 9,87 a 11,87 que parecía un desplome del mercado.
+
+    2. El relleno usa el ÚLTIMO precio conocido (el de ahora), no el de la última medición
+       histórica. Antes usaba el de mayo (9,87) y el gráfico mostraba ese precio como actual.
     """
     if len(filas) < 2:
         return filas
-    salida = [filas[0]]
+    ultimo_precio = filas[-1][1]
+    ultimo_venta = filas[-1][2]
+    limite = filas[-1][0] - horas_atras * 3600
+    salida = []
     rellenadas = 0
-    tope = max_horas * 3600
-    for i in range(1, len(filas)):
-        t0, c0, v0 = filas[i - 1]
-        t1 = filas[i][0]
-        salto = t1 - t0
-        if salto > paso_min * 60 * 2 and salto <= tope:
-            t = t0 + paso_min * 60
-            while t < t1:
-                salida.append((t, c0, v0))
+    for i, (t, c, v) in enumerate(filas):
+        salida.append((t, c, v))
+        if i + 1 >= len(filas):
+            break
+        t1 = filas[i + 1][0]
+        if t1 - t <= paso_min * 60 * 2:
+            continue
+        # solo se rellena si el hueco está en la ventana reciente
+        t_ = t + paso_min * 60
+        while t_ < t1:
+            if t_ >= limite:
+                salida.append((t_, ultimo_precio, ultimo_venta))
                 rellenadas += 1
-                t += paso_min * 60
-        elif salto > tope:
-            print(f"  (salto de {salto/86400:.0f} días: demasiado grande, no se rellena)")
-        salida.append(filas[i])
+            t_ += paso_min * 60
     if rellenadas:
-        print(f"  rellenados {rellenadas} huecos de {paso_min} min")
+        print(f"  rellenados {rellenadas} tramos de {paso_min} min con el precio actual ({ultimo_precio})")
     return salida
 
 

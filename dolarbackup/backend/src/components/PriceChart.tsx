@@ -1,27 +1,43 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, CandlestickSeries, AreaSeries, ColorType } from 'lightweight-charts';
+import { createChart, CandlestickSeries, ColorType } from 'lightweight-charts';
 import { RatesDataResponse } from '@/types/rates';
 
 interface Props {
   data: RatesDataResponse;
 }
 
-type Period = '24h' | '7d' | '30d' | '1a';
+type Period = '1D' | '1S' | '1M' | '3M' | '1A' | 'Todo';
 
 /**
- * Gráfico USDT/BOB estilo TradingView (librería open source de TradingView).
+ * Gráfico USDT/BOB con la estética EXACTA de TradingView (tema oscuro).
  *
- * IMPORTANTE: antes este gráfico se dibujaba con datos INVENTADOS (una caminata aleatoria
- * alrededor del precio actual, `Math.random`). No era historia, era ruido que parecía un
- * gráfico. Ahora usa la serie real que arma tools/historial.py y sirve /api/historial.json:
- * 34.000 velas de 15 minutos desde mayo de 2025.
+ * Colores del tema "Dark" de TradingView: verde #26a69a para las velas que suben, rojo
+ * #ef5350 para las que bajan, fondo #131722, grilla #1e222d, texto #d1d4dc, bordes #2a2e39.
+ * Incluye la leyenda O H L C arriba a la izquierda (que sigue al mouse, como en
+ * tradingview.com) y la escala de precios a la derecha.
+ *
+ * Los datos son reales: los arma tools/historial.py y los sirve /api/historial.json
+ * (34.000 velas de 15 minutos). El gráfico anterior usaba Math.random.
  */
 
-const PERIODOS: { id: Period; etiqueta: string; horas: number }[] = [
-  { id: '24h', etiqueta: '24h', horas: 24 },
-  { id: '7d', etiqueta: '7d', horas: 24 * 7 },
-  { id: '30d', etiqueta: '30d', horas: 24 * 30 },
-  { id: '1a', etiqueta: '1a', horas: 24 * 366 },
+const TV = {
+  fondo: '#131722',
+  grilla: '#1e222d',
+  borde: '#2a2e39',
+  texto: '#d1d4dc',
+  textoSuave: '#787b86',
+  verde: '#26a69a',
+  rojo: '#ef5350',
+  cruz: '#758696',
+};
+
+const PERIODOS: { id: Period; horas: number }[] = [
+  { id: '1D', horas: 24 },
+  { id: '1S', horas: 24 * 7 },
+  { id: '1M', horas: 24 * 30 },
+  { id: '3M', horas: 24 * 90 },
+  { id: '1A', horas: 24 * 366 },
+  { id: 'Todo', horas: 24 * 5000 },
 ];
 
 type Vela = { time: number; open: number; high: number; low: number; close: number };
@@ -29,9 +45,10 @@ type Vela = { time: number; open: number; high: number; low: number; close: numb
 export const PriceChart: React.FC<Props> = ({ data }) => {
   const caja = useRef<HTMLDivElement | null>(null);
   const [velas, setVelas] = useState<Vela[]>([]);
-  const [period, setPeriod] = useState<Period>('7d');
-  const [tipo, setTipo] = useState<'velas' | 'linea'>('velas');
+  const [period, setPeriod] = useState<Period>('1M');
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
+  const [leyenda, setLeyenda] = useState<Vela | null>(null);
+  const [variacion, setVariacion] = useState<number | null>(null);
 
   useEffect(() => {
     fetch('/api/historial.json')
@@ -45,129 +62,137 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
 
     const chart = createChart(caja.current, {
       layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255,255,255,0.35)',
-        fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-        fontSize: 10,
+        background: { type: ColorType.Solid, color: TV.fondo },
+        textColor: TV.texto,
+        fontSize: 11,
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, Ubuntu, sans-serif',
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.03)' },
-        horzLines: { color: 'rgba(255,255,255,0.03)' },
+        vertLines: { color: TV.grilla },
+        horzLines: { color: TV.grilla },
       },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.06)' },
+      rightPriceScale: {
+        borderColor: TV.borde,
+        scaleMargins: { top: 0.08, bottom: 0.08 },
+      },
       timeScale: {
-        borderColor: 'rgba(255,255,255,0.06)',
+        borderColor: TV.borde,
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 4,
+        barSpacing: 6,
       },
       crosshair: {
         mode: 1,
-        vertLine: { color: 'rgba(245,158,11,0.4)', width: 1, style: 3, labelBackgroundColor: '#f59e0b' },
-        horzLine: { color: 'rgba(245,158,11,0.4)', width: 1, style: 3, labelBackgroundColor: '#f59e0b' },
+        vertLine: { color: TV.cruz, width: 1, style: 2, labelBackgroundColor: TV.borde },
+        horzLine: { color: TV.cruz, width: 1, style: 2, labelBackgroundColor: TV.borde },
       },
+      localization: { priceFormatter: (p: number) => p.toFixed(2) },
       autoSize: true,
     });
 
     const horas = PERIODOS.find(p => p.id === period)!.horas;
-    const desde = Math.floor(Date.now() / 1000) - horas * 3600;
-    const visibles = velas.filter(v => v.time >= desde);
-    const datos = visibles.length > 2 ? visibles : velas.slice(-200);
+    const ahora = Math.floor(Date.now() / 1000);
+    const visibles = velas.filter(v => v.time >= ahora - horas * 3600);
+    const datos = visibles.length > 2 ? visibles : velas.slice(-300);
 
-    if (tipo === 'velas') {
-      const serie = chart.addSeries(CandlestickSeries, {
-        upColor: '#f59e0b',
-        downColor: '#ef4444',
-        borderUpColor: '#f59e0b',
-        borderDownColor: '#ef4444',
-        wickUpColor: 'rgba(245,158,11,0.7)',
-        wickDownColor: 'rgba(239,68,68,0.7)',
-      });
-      serie.setData(datos.map(v => ({
-        time: v.time as never, open: v.open, high: v.high, low: v.low, close: v.close,
-      })));
-    } else {
-      const serie = chart.addSeries(AreaSeries, {
-        lineColor: '#f59e0b',
-        topColor: 'rgba(245,158,11,0.28)',
-        bottomColor: 'rgba(245,158,11,0.01)',
-        lineWidth: 2,
-      });
-      serie.setData(datos.map(v => ({ time: v.time as never, value: v.close })));
+    // Velas VERDES las que suben y ROJAS las que bajan: los colores de TradingView
+    const serie = chart.addSeries(CandlestickSeries, {
+      upColor: TV.verde,
+      downColor: TV.rojo,
+      borderUpColor: TV.verde,
+      borderDownColor: TV.rojo,
+      wickUpColor: TV.verde,
+      wickDownColor: TV.rojo,
+      priceLineVisible: true,
+      priceLineColor: TV.textoSuave,
+      priceLineStyle: 2,
+      lastValueVisible: true,
+    });
+    serie.setData(datos.map(v => ({
+      time: v.time as never, open: v.open, high: v.high, low: v.low, close: v.close,
+    })));
+
+    if (datos.length > 1) {
+      const a = datos[0].close, b = datos[datos.length - 1].close;
+      setVariacion(((b - a) / a) * 100);
     }
-    chart.timeScale().fitContent();
-    return () => chart.remove();
-  }, [velas, period, tipo]);
+    setLeyenda(datos[datos.length - 1] || null);
 
-  const ultimo = velas.length ? velas[velas.length - 1].close : null;
-  const primero = velas.length ? velas[0].close : null;
-  const variacion = ultimo && primero ? ((ultimo - primero) / primero) * 100 : null;
+    // La leyenda O H L C sigue al mouse, igual que en tradingview.com
+    const alMover = (param: any) => {
+      const d = param?.seriesData?.get(serie);
+      if (d && d.open !== undefined) {
+        setLeyenda({ time: (param.time as number) ?? 0, open: d.open, high: d.high, low: d.low, close: d.close });
+      }
+    };
+    chart.subscribeCrosshairMove(alMover);
+
+    chart.timeScale().fitContent();
+    return () => { chart.unsubscribeCrosshairMove(alMover); chart.remove(); };
+  }, [velas, period]);
+
+  const v = leyenda;
+  const colorVela = v && v.close >= v.open ? TV.verde : TV.rojo;
+  const ultimo = velas.length ? velas[velas.length - 1] : null;
 
   return (
     <section className="py-8 animate-fade-up-delay">
-      <div className="flex items-center justify-between mb-5">
-        <div className="text-sm font-bold text-blue-400/70 uppercase tracking-[0.15em]">
-          <span className="text-blue-400/40">//</span> gráfica
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="text-lg font-semibold tracking-tight text-white/90">USDT / BOB</span>
+          <span className="rounded bg-white/[0.06] px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-white/40">
+            Binance P2P
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="inline-flex bg-white/[0.03] border border-white/[0.06] rounded-lg p-0.5">
-            {PERIODOS.map(p => (
-              <button key={p.id} onClick={() => setPeriod(p.id)}
-                className={`px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-all ${
-                  period === p.id ? 'bg-white/[0.08] text-white' : 'text-white/25 hover:text-white/50'
-                }`}>
-                {p.etiqueta}
-              </button>
-            ))}
-          </div>
-          <button onClick={() => setTipo(tipo === 'velas' ? 'linea' : 'velas')}
-            className="px-3 py-1.5 rounded-md text-xs font-mono text-white/25 hover:text-white/50 border border-white/[0.06]">
-            {tipo === 'velas' ? 'línea' : 'velas'}
-          </button>
+        <div className="inline-flex overflow-hidden rounded-md border border-white/[0.08]">
+          {PERIODOS.map((p, i) => (
+            <button key={p.id} onClick={() => setPeriod(p.id)}
+              className={`px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                period === p.id
+                  ? 'bg-white/[0.12] text-white'
+                  : 'text-white/35 hover:bg-white/[0.04] hover:text-white/60'
+              } ${i > 0 ? 'border-l border-white/[0.06]' : ''}`}>
+              {p.id}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.01] p-4 sm:p-6">
-        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 mb-4">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[11px] font-mono text-white/35 uppercase">USDT/BOB</span>
-            <span className="text-2xl font-bold font-mono text-amber-500">
-              {ultimo ? ultimo.toFixed(2) : data.parallel.sell.toFixed(2)}
-            </span>
-            <span className="text-xs font-mono text-white/25">Bs</span>
-          </div>
+      <div className="overflow-hidden rounded-lg border border-[#2a2e39] bg-[#131722]">
+        {/* Leyenda O H L C: el detalle más característico de TradingView */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-3 text-[11px] font-mono">
+          <span className="font-semibold text-[#d1d4dc]">USDT/BOB · 15m · Binance P2P</span>
+          <span className="text-[#787b86]">O <span style={{ color: colorVela }}>{v ? v.open.toFixed(2) : '—'}</span></span>
+          <span className="text-[#787b86]">H <span style={{ color: colorVela }}>{v ? v.high.toFixed(2) : '—'}</span></span>
+          <span className="text-[#787b86]">L <span style={{ color: colorVela }}>{v ? v.low.toFixed(2) : '—'}</span></span>
+          <span className="text-[#787b86]">C <span style={{ color: colorVela }}>{v ? v.close.toFixed(2) : '—'}</span></span>
           {variacion !== null && (
-            <span className={`text-xs font-mono ${variacion >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
-              {variacion >= 0 ? '▲' : '▼'} {Math.abs(variacion).toFixed(2)}% en el período
+            <span style={{ color: variacion >= 0 ? TV.verde : TV.rojo }}>
+              {variacion >= 0 ? '+' : ''}{variacion.toFixed(2)}%
             </span>
           )}
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-[11px] font-mono text-white/35">
-              Compra P2P {data.parallel.compra?.toFixed(2) ?? '—'} · Venta {data.parallel.venta?.toFixed(2) ?? '—'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-500/60" />
-            <span className="text-[11px] font-mono text-white/35">Oficial BCB {data.official.buyRate.toFixed(2)}</span>
-          </div>
         </div>
 
         {estado === 'cargando' && (
-          <div className="h-[300px] flex items-center justify-center text-xs font-mono text-white/20">
+          <div className="flex h-[360px] items-center justify-center text-xs font-mono text-[#787b86]">
             cargando el histórico…
           </div>
         )}
         {estado === 'error' && (
-          <div className="h-[300px] flex items-center justify-center text-xs font-mono text-white/25">
+          <div className="flex h-[360px] items-center justify-center text-xs font-mono text-[#787b86]">
             no pude cargar /api/historial.json
           </div>
         )}
-        {estado === 'ok' && <div ref={caja} className="h-[300px] w-full" />}
+        {estado === 'ok' && <div ref={caja} className="h-[360px] w-full" />}
 
-        <div className="mt-3 flex justify-between text-[10px] font-mono text-white/20">
-          <span>Precio P2P (USDT/Boliviano) · velas de 15 min</span>
-          <span>fuente: Binance P2P</span>
+        <div className="flex items-center justify-between px-4 pb-3 text-[10px] font-mono text-[#787b86]">
+          <span>Precio de compra P2P · velas de 15 minutos</span>
+          <span>
+            {ultimo && <>último cierre <span className="text-[#d1d4dc]">{ultimo.close.toFixed(2)}</span></>}
+            {' · '}oficial BCB <span className="text-[#d1d4dc]">{data.official.buyRate.toFixed(2)}</span>
+          </span>
         </div>
       </div>
     </section>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es-BO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gráfico USDT/BOB — DólarBolivia</title>
+<meta name="description" content="Gráfico interactivo del dólar paralelo en Bolivia (USDT/BOB): velas, línea, oficial del BCB, medias y brecha. Datos cada 5 minutos.">
+<meta name="theme-color" content="#050505">
+<style>
+  :root { --fondo:#050505; --panel:#0c0c0c; --borde:#1e1e1e; --texto:#f2f2f2; --tenue:#9a9a9a; --ambar:#f5b301; --rojo:#ff5252; --azul:#4da3ff; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--fondo); color:var(--texto);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  a { color: var(--ambar); }
+  header { padding:18px 20px 6px; max-width:1400px; margin:0 auto; }
+  .fila { display:flex; flex-wrap:wrap; align-items:baseline; gap:14px; }
+  h1 { font-size:20px; margin:0; letter-spacing:.2px; }
+  .par { font-size:13px; color:var(--tenue); }
+  .precio { font-size:40px; font-weight:800; line-height:1.05; margin:10px 0 2px; }
+  .precio small { font-size:16px; font-weight:600; color:var(--tenue); margin-left:4px; }
+  .sub { font-size:14px; color:var(--tenue); }
+  .sub b { color:var(--texto); font-weight:600; }
+  .controles { max-width:1400px; margin:14px auto 0; padding:0 20px; display:flex; flex-wrap:wrap; gap:10px; }
+  .grupo { display:flex; flex-wrap:wrap; gap:6px; background:var(--panel); border:1px solid var(--borde);
+    border-radius:10px; padding:5px; }
+  button { border:0; background:transparent; color:var(--texto); font-size:14px;
+    font-weight:600; padding:8px 12px; border-radius:7px; cursor:pointer; }
+  button:hover { background:#1a1a1a; }
+  button[aria-pressed="true"] { background:var(--ambar); color:#121212; }
+  button.capa[aria-pressed="true"] { background:#2a2409; color:var(--ambar); }
+  #envoltorio { max-width:1400px; margin:14px auto 0; padding:0 20px 30px; }
+  #grafico { position:relative; width:100%; height:min(72vh, 640px); min-height:380px;
+    border:1px solid var(--borde); border-radius:12px; overflow:hidden; background:var(--fondo); }
+  #leyenda { visibility:hidden; position:absolute; left:12px; top:10px; z-index:3; font-size:13px; color:var(--tenue);
+    background:rgba(5,5,5,.82); border:1px solid var(--borde); border-radius:8px; padding:6px 10px;
+    pointer-events:none; font-variant-numeric: tabular-nums; }
+  #leyenda b { color:var(--texto); font-weight:600; }
+  #estado { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:15px; color:var(--tenue); z-index:2; text-align:center; padding:20px; }
+  #estado.oculto { display:none; }
+  footer { max-width:1400px; margin:0 auto; padding:0 20px 40px; font-size:12px; color:var(--tenue); line-height:1.7; }
+  .credito { display:inline-block; margin-top:8px; }
+  @media (max-width:640px) {
+    .precio { font-size:31px; } #grafico { height:58vh; min-height:320px; }
+    button { padding:7px 9px; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="fila">
+    <h1>Dólar paralelo en Bolivia</h1>
+    <span class="par">USDT/BOB · Binance y Bybit P2P</span>
+  </div>
+  <div class="precio" id="precio">— <small>Bs</small></div>
+  <div class="sub" id="resumen">Cargando el histórico…</div>
+</header>
+
+<nav class="controles" aria-label="Controles del gráfico">
+  <div class="grupo" id="rangos" role="group" aria-label="Rango de tiempo">
+    <button data-rango="hoy">Hoy</button>
+    <button data-rango="ayer">Ayer</button>
+    <button data-rango="3d">3 d</button>
+    <button data-rango="7d" aria-pressed="true">7 d</button>
+    <button data-rango="1m">1 mes</button>
+    <button data-rango="3m">3 meses</button>
+    <button data-rango="6m">6 meses</button>
+    <button data-rango="1y">1 año</button>
+    <button data-rango="todo">Todo</button>
+  </div>
+  <div class="grupo" id="intervalos" role="group" aria-label="Intervalo de las velas">
+    <button data-intervalo="5">5m</button>
+    <button data-intervalo="15" aria-pressed="true">15m</button>
+    <button data-intervalo="60">1h</button>
+    <button data-intervalo="240">4h</button>
+    <button data-intervalo="1440">1D</button>
+  </div>
+  <div class="grupo" role="group" aria-label="Tipo de serie">
+    <button id="modo-velas" aria-pressed="true">Velas</button>
+    <button id="modo-linea" aria-pressed="false">Línea</button>
+  </div>
+  <div class="grupo" role="group" aria-label="Capas">
+    <button class="capa" data-capa="oficial" aria-pressed="false">Oficial BCB</button>
+    <button class="capa" data-capa="banda" aria-pressed="false">Banda compra–venta</button>
+    <button class="capa" data-capa="medias" aria-pressed="false">Medias 7·30</button>
+    <button class="capa" data-capa="brecha" aria-pressed="false">Brecha</button>
+  </div>
+</nav>
+
+<div id="envoltorio">
+  <div id="grafico">
+    <div id="leyenda">&nbsp;</div>
+    <div id="estado">Cargando…</div>
+  </div>
+</div>
+
+<footer>
+  Velas construidas con la mediana de anuncios de Binance y Bybit P2P. Horas de Bolivia (UTC−4).
+  <br>
+  <span class="credito">Charting by <a href="https://www.tradingview.com/?utm_medium=lwc-link&amp;utm_campaign=lwc-chart&amp;utm_source=dolarbolivia.site" rel="noopener">TradingView</a> Lightweight Charts™</span>
+</footer>
+
+<script src="./lightweight-charts.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>

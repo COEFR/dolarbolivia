@@ -388,16 +388,6 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
             Binance P2P
           </span>
         </div>
-        <div className="inline-flex flex-wrap overflow-hidden rounded-md border border-white/[0.08]">
-          {RANGOS.map((r, i) => (
-            <button key={r.id} onClick={() => setRango(r.id)}
-              className={`px-3 py-1.5 text-[11px] font-medium transition-colors ${
-                rango === r.id ? 'bg-white/[0.12] text-white' : 'text-white/35 hover:bg-white/[0.04] hover:text-white/60'
-              } ${i > 0 ? 'border-l border-white/[0.06]' : ''}`}>
-              {r.etiqueta}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-[#2a2e39] bg-[#131722]">
@@ -484,6 +474,18 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
         {nota && (
           <div className="px-4 py-1 text-[10px] font-mono text-[#f0b90b]/80">{nota}</div>
         )}
+
+        {/* Rango de tiempo, abajo y discreto como la barra azul de TradingView */}
+        <div className="flex flex-wrap items-center justify-center gap-1 border-t border-white/[0.06] px-4 py-1.5 text-[10px] font-mono">
+          {RANGOS.map((r) => (
+            <button key={r.id} onClick={() => setRango(r.id)}
+              className={`rounded px-2 py-1 transition-colors ${
+                rango === r.id ? 'bg-[#2962ff]/25 text-[#7ea6ff]' : 'text-white/40 hover:text-white/70'
+              }`}>
+              {r.etiqueta}
+            </button>
+          ))}
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-[10px] font-mono text-[#787b86]">
           <span>

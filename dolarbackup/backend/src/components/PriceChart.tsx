@@ -36,7 +36,10 @@ const TV = {
   brecha: '#4da3ff',
 };
 
-const DESFASE = -4 * 3600;
+// Cada visitante ve las velas en SU hora local: el desfase sale del navegador
+// (getTimezoneOffset devuelve los minutos al oeste de UTC). Antes estaba fijo en -4 h
+// (Bolivia) y a cualquier visitante en otra zona le mostraba la hora equivocada.
+const DESFASE = -new Date().getTimezoneOffset() * 60;
 
 type VelaBase = { t: number; o: number; h: number; l: number; c: number; v: number };
 type Vela = { time: number; open: number; high: number; low: number; close: number; venta: number };
@@ -199,13 +202,16 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
           t: v[0] + DESFASE, o: v[1], h: v[2], l: v[3], c: v[4], v: v[5],
         })) as VelaBase[];
         const serieOficial = (d.oficial || []).map((p: number[]) => ({ time: p[0] + DESFASE, value: p[1] })) as Punto[];
+        // la serie diaria trae la fecha a medianoche UTC: desplazarla la correría al día
+        // anterior, así que se usa tal cual (el eje muestra la fecha correcta)
         const serieDiaria = (d.dia || []).map((v: number[]) => ({
-          time: v[0] + DESFASE, open: v[1], high: v[2], low: v[3], close: v[4], venta: v[5],
+          time: v[0], open: v[1], high: v[2], low: v[3], close: v[4], venta: v[5],
         })) as Vela[];
         const ext: Record<string, Vela[]> = {};
         Object.keys(d.ext || {}).forEach(k => {
+          const desfase = k === '1d' ? 0 : DESFASE;   // el diario no se corre de día
           ext[k] = (d.ext[k] || []).map((v: number[]) => ({
-            time: v[0] + DESFASE, open: v[1], high: v[2], low: v[3], close: v[4], venta: v[5],
+            time: v[0] + desfase, open: v[1], high: v[2], low: v[3], close: v[4], venta: v[5],
           })) as Vela[];
         });
         setBase(velas);
@@ -217,7 +223,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       .catch(() => setEstado('error'));
   }, []);
 
-  const { velas: visibles, oficialVisible } = useMemo(() => {
+  const { velas: visibles, oficialVisible, nota } = useMemo<{ velas: Vela[]; oficialVisible: Punto[]; nota?: string }>(() => {
     const r = rangoFechas(rango);
     const oficialVisible = oficial.filter(p => p.time >= r.desde - 1800 && p.time <= r.hasta + 1800);
     // tramo ya agregado de ellos, si cubre el rango pedido
@@ -225,6 +231,13 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
     const serieExt = externo[clave[intervalo]];
     if (intervalo !== 1440 && serieExt && serieExt.length && serieExt[0].time <= r.desde + 3600) {
       return { velas: serieExt.filter(v => v.time >= r.desde && v.time <= r.hasta), oficialVisible };
+    }
+    if (intervalo !== 1440 && diaria.length && (!serieExt || !serieExt.length || serieExt[0].time > r.desde + 3600)) {
+      // Para rangos más largos que el tramo disponible no hay velas de ese intervalo:
+      // en vez de dibujar puntos planos (inventar el intradía), se muestra el diario.
+      const velas = diaria.filter(v => v.time >= r.desde && v.time <= r.hasta);
+      const etiqueta = INTERVALOS.find(i => i.min === intervalo)?.etiqueta || `${intervalo}m`;
+      if (velas.length) return { velas, oficialVisible, nota: `Sin velas de ${etiqueta} para este rango: se muestra 1D.` };
     }
     if (intervalo === 1440 && diaria.length) {
       // 1D: se usa el histórico diario (2024 → hoy), que no tiene huecos; agregar las
@@ -468,6 +481,9 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
           </div>
         )}
         {estado === 'ok' && visibles.length > 0 && <div ref={caja} className="h-[400px] w-full" />}
+        {nota && (
+          <div className="px-4 py-1 text-[10px] font-mono text-[#f0b90b]/80">{nota}</div>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-[10px] font-mono text-[#787b86]">
           <span>

@@ -18,6 +18,7 @@ CSV = os.path.join(BASE, "data", "historial_p2p.csv")
 HIST = os.path.join(BASE, "docs", "history.json")
 SALIDA = os.path.join(BASE, "docs", "api", "grafico.json")
 DIARIO = os.path.join(BASE, "data", "historial_diario.json")
+EXTERNO = os.path.join(BASE, "data", "historial_externo.json")
 PASO = 5          # minutos por vela base
 TOLERANCIA = 60   # segundos para considerar "la misma medición"
 
@@ -121,6 +122,11 @@ def main():
         diario = json.load(open(DIARIO, encoding="utf-8"))
     except (OSError, ValueError):
         pass
+    externo = {}
+    try:
+        externo = json.load(open(EXTERNO, encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
     salida = {
         "par": "USDT/BOB",
         "base": PASO,
@@ -128,6 +134,7 @@ def main():
         "velas": velas,
         "oficial": oficial_serie,
         "dia": diario,
+        "ext": externo,
     }
     os.makedirs(os.path.dirname(SALIDA), exist_ok=True)
     with open(SALIDA, "w", encoding="utf-8") as f:

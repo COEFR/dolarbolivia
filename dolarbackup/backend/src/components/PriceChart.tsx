@@ -167,6 +167,9 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   const [oficial, setOficial] = useState<Punto[]>([]);
   // serie diaria (2024 en adelante) para la vista de 1D y los rangos largos
   const [diaria, setDiaria] = useState<Vela[]>([]);
+  // tramos ya agregados (15m/1h/4h/1d) publicados en abierto por dolarenbolivia.com:
+  // cubren el pasado que nosotros no medimos (7 d de 15m, 30 d de 1h, 6 m de 4h)
+  const [externo, setExterno] = useState<Record<string, Vela[]>>({});
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
   const [rango, setRango] = useState(() => leerParam('rango') || '7d');
   // 1 h por defecto: es el intervalo donde hoy hay una medición cada media hora (2 por
@@ -199,8 +202,15 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
         const serieDiaria = (d.dia || []).map((v: number[]) => ({
           time: v[0] + DESFASE, open: v[1], high: v[2], low: v[3], close: v[4], venta: v[5],
         })) as Vela[];
+        const ext: Record<string, Vela[]> = {};
+        Object.keys(d.ext || {}).forEach(k => {
+          ext[k] = (d.ext[k] || []).map((v: number[]) => ({
+            time: v[0] + DESFASE, open: v[1], high: v[2], low: v[3], close: v[4], venta: v[5],
+          })) as Vela[];
+        });
         setBase(velas);
         setDiaria(serieDiaria);
+        setExterno(ext);
         setOficial(serieOficial);
         setEstado('ok');
       })
@@ -210,6 +220,12 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   const { velas: visibles, oficialVisible } = useMemo(() => {
     const r = rangoFechas(rango);
     const oficialVisible = oficial.filter(p => p.time >= r.desde - 1800 && p.time <= r.hasta + 1800);
+    // tramo ya agregado de ellos, si cubre el rango pedido
+    const clave: Record<number, string> = { 15: '15m', 60: '1h', 240: '4h', 1440: '1d' };
+    const serieExt = externo[clave[intervalo]];
+    if (intervalo !== 1440 && serieExt && serieExt.length && serieExt[0].time <= r.desde + 3600) {
+      return { velas: serieExt.filter(v => v.time >= r.desde && v.time <= r.hasta), oficialVisible };
+    }
     if (intervalo === 1440 && diaria.length) {
       // 1D: se usa el histórico diario (2024 → hoy), que no tiene huecos; agregar las
       // mediciones de 5 min a un día daría velas incompletas.
@@ -220,7 +236,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
     }
     const dentro = base.filter(v => v.t >= r.desde && v.t <= r.hasta);
     return { velas: agrupar(dentro, intervalo), oficialVisible };
-  }, [base, diaria, oficial, rango, intervalo]);
+  }, [base, diaria, externo, oficial, rango, intervalo]);
 
   useEffect(() => {
     if (!caja.current || visibles.length === 0) return;
@@ -455,7 +471,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-[10px] font-mono text-[#787b86]">
           <span>
-            Compra P2P (promedio de los 15 anuncios, 4 decimales) · velas de {etiquetaIntervalo} · hora de Bolivia · histórico diario: dolarenbolivia.com 
+            Compra P2P (promedio de los 15 anuncios, 4 decimales) · velas de {etiquetaIntervalo} · hora de Bolivia · tramos 15m/1h/4h/1d y diario: dolarenbolivia.com 
             {maximo !== null && minimo !== null && (
               <> · máx <span className="text-[#d1d4dc]">{maximo.toFixed(2)}</span> · mín <span className="text-[#d1d4dc]">{minimo.toFixed(2)}</span></>
             )}

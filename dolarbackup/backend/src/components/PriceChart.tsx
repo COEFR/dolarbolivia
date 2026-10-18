@@ -104,6 +104,7 @@ function agrupar(velas: VelaBase[], minutos: number): Vela[] {
     }
   }
   if (actual) { actual.venta = sumaVenta / n; salida.push(actual); }
+
   return salida;
 }
 
@@ -136,9 +137,9 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   const [oficial, setOficial] = useState<Punto[]>([]);
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
   const [rango, setRango] = useState('7d');
-  // 1h por defecto: con una medición cada ~30 min (hasta hoy) las velas de 15 m quedaban
-  // con una sola muestra y se dibujaban como rayas. Con el muestreo por minuto ya activo,
-  // 15 m se llena solo en unas horas.
+  // 1 h por defecto: es el intervalo donde hoy hay una medición cada media hora (2 por
+  // vela). Con 15 m hay media medición por vela y salen velas planas; el muestreo por
+  // minuto que corre desde las 20:30 va a permitir volver a 15 m en uno o dos días.
   const [intervalo, setIntervalo] = useState(60);
   const [modo, setModo] = useState<'velas' | 'linea'>('velas');
   // el oficial arranca apagado: con la escala compartida comprime las velas del paralelo
@@ -182,7 +183,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       },
       grid: { vertLines: { color: TV.grilla }, horzLines: { color: TV.grilla } },
       rightPriceScale: { borderColor: TV.borde, scaleMargins: { top: 0.1, bottom: 0.1 } },
-      timeScale: { borderColor: TV.borde, timeVisible: true, secondsVisible: false, rightOffset: 4, barSpacing: 8 },
+      timeScale: { borderColor: TV.borde, timeVisible: true, secondsVisible: false, rightOffset: 4, barSpacing: 6 },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: { color: TV.cruz, width: 1, style: 2, labelBackgroundColor: TV.borde },
@@ -355,7 +356,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-[10px] font-mono text-[#787b86]">
           <span>
-            Precio de compra P2P · velas de {etiquetaIntervalo} · hora de Bolivia
+            Precio de compra P2P · velas de {etiquetaIntervalo} · hora de Bolivia 
             {maximo !== null && minimo !== null && (
               <> · máx <span className="text-[#d1d4dc]">{maximo.toFixed(2)}</span> · mín <span className="text-[#d1d4dc]">{minimo.toFixed(2)}</span></>
             )}

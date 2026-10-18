@@ -19,3 +19,19 @@
 3. `history.json` trae **87 registros** de cotización desde 2026-07-25 (formato `{t,s,b,o}`: timestamp, venta?, compra?, oficial).
 4. El grep sobre `assets/*.js` explota: son bundles minificados (Tailwind + html2canvas). Excluir esa carpeta.
 5. Sin secretos en el código fuente (verificado: no hay tokens ni IPs hardcodeadas en `backend/` ni `frontend-source/`).
+
+## 2026-10-18 · Gráfico interactivo USDT/BOB en /grafico/
+
+- Página nueva: https://dolarbolivia.site/grafico/ (estática, GitHub Pages). Librería: Lightweight Charts
+  v5.0.9 de TradingView, vendorizada en `docs/grafico/lightweight-charts.js` (Apache-2.0, sin CDN).
+- Datos: `docs/api/grafico.json` (~1,4 MB) = velas base de 5 min en arrays `[t,o,h,l,c,venta]` + serie del
+  oficial. Lo arma `tools/grafico.py`, que además fusiona en el CSV lo que falte de `docs/history.json`.
+  El navegador agrega a 5m/15m/1h/4h/1D y recorta el rango: no hace falta servidor.
+- Controles: rangos Hoy/Ayer/3d/7d/1m/3m/6m/1a/Todo, intervalos 5m/15m/1h/4h/1D, velas o línea, capas
+  (oficial BCB, banda compra-venta, medias 7/30, brecha en panel aparte). Estado en la URL
+  (`?rango=7d&intervalo=15m&capa=oficial,medias`).
+- El Action `tasas.yml` regenera y versiona `grafico.json` en cada corrida (además de rates, history y CSV).
+- Referencia que se copió: dolarenbolivia.com (usa la misma librería, pero con endpoints
+  `/grafico/parallel?range=&interval=` y `/grafico/official?range=` en servidor).
+- Pendiente: enlazarlo desde la portada (el bundle React actual no tiene fuentes en el repo), herramientas
+  de dibujo y estocástico (la referencia las tiene), y decidir si reemplaza al gráfico Recharts actual.

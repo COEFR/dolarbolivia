@@ -62,11 +62,12 @@ const INTERVALOS: { min: number; etiqueta: string }[] = [
   { min: 1440, etiqueta: '1D' },
 ];
 
-const CAPAS: { id: 'oficial' | 'banda' | 'medias' | 'brecha'; etiqueta: string }[] = [
+const CAPAS: { id: 'oficial' | 'banda' | 'medias' | 'brecha' | 'estocastico'; etiqueta: string }[] = [
   { id: 'oficial', etiqueta: 'Oficial' },
   { id: 'banda', etiqueta: 'Banda' },
   { id: 'medias', etiqueta: 'Medias 7·30' },
   { id: 'brecha', etiqueta: 'Brecha' },
+  { id: 'estocastico', etiqueta: 'Estocástico' },
 ];
 
 function rangoFechas(rango: string): { desde: number; hasta: number } {
@@ -119,6 +120,27 @@ function mediaMovil(velas: Vela[], periodo: number): Punto[] {
   return salida;
 }
 
+function estocastico(velas: Vela[], periodo = 14): Punto[] {
+  const salida: Punto[] = [];
+  for (let i = periodo - 1; i < velas.length; i++) {
+    const ventana = velas.slice(i - periodo + 1, i + 1);
+    const max = ventana.reduce((a, v) => Math.max(a, v.high), -Infinity);
+    const min = ventana.reduce((a, v) => Math.min(a, v.low), Infinity);
+    const rango = max - min;
+    salida.push({ time: velas[i].time, value: rango > 0 ? Number((((velas[i].close - min) / rango) * 100).toFixed(2)) : 50 });
+  }
+  return salida;
+}
+
+function mediaDePuntos(puntos: Punto[], periodo = 3): Punto[] {
+  const salida: Punto[] = [];
+  for (let i = periodo - 1; i < puntos.length; i++) {
+    const suma = puntos.slice(i - periodo + 1, i + 1).reduce((a, p) => a + p.value, 0);
+    salida.push({ time: puntos[i].time, value: Number((suma / periodo).toFixed(2)) });
+  }
+  return salida;
+}
+
 function calcularBrecha(velas: Vela[], oficial: Punto[]): Punto[] {
   if (!oficial.length) return [];
   const salida: Punto[] = [];
@@ -153,7 +175,17 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   const [intervalo, setIntervalo] = useState(() => Number(leerParam('intervalo')) || 60);
   const [modo, setModo] = useState<'velas' | 'linea'>('velas');
   // el oficial arranca apagado: con la escala compartida comprime las velas del paralelo
-  const [capas, setCapas] = useState({ oficial: false, banda: false, medias: false, brecha: false });
+  const [capas, setCapas] = useState(() => {
+    const activas = (leerParam('capa') || '').split(',');
+    return {
+      oficial: activas.includes('oficial'),
+      banda: activas.includes('banda'),
+      medias: activas.includes('medias'),
+      brecha: activas.includes('brecha'),
+      estocastico: activas.includes('estocastico'),
+    };
+  });
+  const [copiado, setCopiado] = useState(false);
   const [leyenda, setLeyenda] = useState<Vela | null>(null);
 
   useEffect(() => {
@@ -259,6 +291,23 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       chart.panes()[1]?.setHeight(110);
     }
 
+    if (capas.estocastico && visibles.length > 15) {
+      const panel = capas.brecha ? 2 : 1;
+      const k = estocastico(visibles, 14);
+      const d = mediaDePuntos(k, 3);
+      const sK = chart.addSeries(LineSeries, {
+        color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
+        priceFormat: { type: 'custom', minMove: 0.01, formatter: (v: number) => v.toFixed(0) },
+      }, panel);
+      const sD = chart.addSeries(LineSeries, {
+        color: '#4da3ff', lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
+        priceFormat: { type: 'custom', minMove: 0.01, formatter: (v: number) => v.toFixed(0) },
+      }, panel);
+      sK.setData(k.map(p => ({ time: p.time as never, value: p.value })));
+      sD.setData(d.map(p => ({ time: p.time as never, value: p.value })));
+      chart.panes()[panel]?.setHeight(110);
+    }
+
     setLeyenda(visibles[visibles.length - 1] || null);
 
     const alMover = (param: any) => {
@@ -292,11 +341,14 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       const url = new URL(window.location.href);
       url.searchParams.set('rango', rango);
       url.searchParams.set('intervalo', String(intervalo));
+      const activas = (['oficial', 'banda', 'medias', 'brecha', 'estocastico'] as const).filter(c => capas[c]);
+      if (activas.length) url.searchParams.set('capa', activas.join(','));
+      else url.searchParams.delete('capa');
       window.history.replaceState(null, '', url);
     } catch {
       /* sin URL (SSR o navegador raro): no pasa nada */
     }
-  }, [rango, intervalo]);
+  }, [rango, intervalo, capas]);
 
   return (
     <section className="py-8 animate-fade-up-delay">
@@ -366,6 +418,21 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
                 </button>
               ))}
             </div>
+            <button
+              onClick={async () => {
+                const enlace = window.location.href;
+                try {
+                  await navigator.clipboard.writeText(enlace);
+                } catch {
+                  window.prompt('Copiá el enlace del gráfico:', enlace);
+                }
+                setCopiado(true);
+                window.setTimeout(() => setCopiado(false), 1500);
+              }}
+              className="rounded border border-white/[0.08] px-2 py-1 text-white/45 transition-colors hover:text-white/70"
+            >
+              {copiado ? '¡Copiado!' : 'Compartir'}
+            </button>
           </div>
         </div>
 

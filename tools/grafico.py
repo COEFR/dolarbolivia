@@ -87,7 +87,7 @@ def velas_base(filas, minutos=PASO):
     salida = []
     for b in sorted(bloques):
         o, h, l, c, suma_venta, n = bloques[b]
-        salida.append([b, round(o, 2), round(h, 2), round(l, 2), round(c, 2), round(suma_venta / n, 2)])
+        salida.append([b, round(o, 4), round(h, 4), round(l, 4), round(c, 4), round(suma_venta / n, 4)])
     return salida
 
 

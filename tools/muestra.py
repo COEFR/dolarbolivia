@@ -11,13 +11,16 @@ reloj estuvo caído). Nunca duplica: compara marcas de tiempo con 60 s de tolera
 import json
 import os
 import sys
+import urllib.request
 from datetime import datetime, timezone
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)
 sys.path.insert(0, AQUI)
 
-from tasas import fetch_referencia, fetch_binance  # noqa: E402
+from tasas import fetch_referencia, UA  # noqa: E402
+
+URL_ADV = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 
 CSV = os.path.join(BASE, "data", "historial_p2p.csv")
 HIST = os.path.join(BASE, "docs", "history.json")
@@ -64,17 +67,36 @@ def recuperar_de_history(ultima):
     return len(nuevas)
 
 
+def _anuncios(trade_type):
+    """Los 15 anuncios que usa el sitio (mismo filtro que fetch_binance)."""
+    cuerpo = json.dumps({"asset": "USDT", "fiat": "BOB", "tradeType": trade_type,
+                         "page": 1, "rows": 15, "transAmount": "1000",
+                         "payTypes": [], "publisherType": None}).encode()
+    req = urllib.request.Request(URL_ADV, data=cuerpo,
+                                 headers={**UA, "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        data = json.loads(r.read())
+    precios = [float(i["adv"]["price"]) for i in data.get("data", []) if i.get("adv", {}).get("price")]
+    return precios
+
+
 def medir():
+    """Precio de compra y de venta con cuatro decimales.
+
+    El precio de titular es la mediana a dos decimales (lo que ve la gente), pero para
+    las velas hace falta más resolución: la mediana de 15 anuncios se mueve en pasos de
+    un céntimo y deja todas las velas planas. El promedio de esos mismos anuncios da
+    cuatro decimales y es el mismo criterio que usa el gráfico de referencia.
+    """
     try:
-        r = fetch_referencia()
-        return r["compra"], r["venta"]
+        buy = _anuncios("BUY")
+        sell = _anuncios("SELL")
+        if buy and sell:
+            return round(sum(buy) / len(buy), 4), round(sum(sell) / len(sell), 4)
     except Exception as e:
-        print(f"  ! referencia: {str(e)[:60]} · paso al P2P de Binance")
-    buy = fetch_binance("BUY")   # lo que cuesta comprar USDT (alto)
-    sell = fetch_binance("SELL")  # lo que pagan por venderlo (bajo)
-    if buy.get("avg") and sell.get("avg"):
-        return round(buy["avg"], 2), round(sell["avg"], 2)
-    raise SystemExit("sin datos de ninguna fuente")
+        print(f"  ! anuncios: {str(e)[:60]} · paso a la referencia")
+    r = fetch_referencia()
+    return round(r["compra"], 4), round(r["venta"], 4)
 
 
 def main():
@@ -92,8 +114,8 @@ def main():
     compra, venta = medir()
     os.makedirs(os.path.dirname(CSV), exist_ok=True)
     with open(CSV, "a", encoding="utf-8") as out:
-        out.write(f"{ahora.isoformat()},{round(compra, 2)},{round(venta, 2)}\n")
-    print(f"{marca}: anotado compra {compra:.2f} · venta {venta:.2f}")
+        out.write(f"{ahora.isoformat()},{compra:.4f},{venta:.4f}\n")
+    print(f"{marca}: anotado compra {compra:.4f} · venta {venta:.4f}")
     return 0
 
 

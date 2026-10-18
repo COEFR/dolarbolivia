@@ -388,7 +388,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-[10px] font-mono text-[#787b86]">
           <span>
-            Precio de compra P2P · velas de {etiquetaIntervalo} · hora de Bolivia · histórico diario: dolarenbolivia.com 
+            Compra P2P (promedio de los 15 anuncios, 4 decimales) · velas de {etiquetaIntervalo} · hora de Bolivia · histórico diario: dolarenbolivia.com 
             {maximo !== null && minimo !== null && (
               <> · máx <span className="text-[#d1d4dc]">{maximo.toFixed(2)}</span> · mín <span className="text-[#d1d4dc]">{minimo.toFixed(2)}</span></>
             )}

@@ -1,0 +1,55 @@
+name: muestreo
+
+# Una medición por minuto en data/historial_p2p.csv.
+#
+# Por qué existe: si cada vela de 15 minutos tiene una sola medición, su apertura es igual
+# a su cierre y el gráfico la dibuja como una raya plana, sin cuerpo ni mecha. Muestreando
+# cada minuto cada vela junta ~15 mediciones y se ve como una vela de verdad.
+#
+# Lo dispara el reloj de la VPS (tools/disparar_muestra.sh) cada minuto. El schedule de
+# GitHub queda como respaldo (es impuntual y su grilla mínima es de 5 minutos).
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: muestreo
+  cancel-in-progress: false
+
+jobs:
+  muestra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Medir y anotar
+        run: python tools/muestra.py
+
+      - name: Guardar la medición
+        run: |
+          git config user.name "DolarBolivia"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/historial_p2p.csv
+          if git diff --cached --quiet; then
+            echo "sin medición nueva"
+            exit 0
+          fi
+          git commit -m "muestra $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            if git pull --rebase --autostash origin main && git push; then
+              echo "medición guardada"
+              break
+            fi
+            echo "reintento $i…"
+            sleep 3
+          done

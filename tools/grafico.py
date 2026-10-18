@@ -3,11 +3,7 @@
 
 Dos cosas:
 
-1. Fusiona en data/historial_p2p.csv las mediciones que ya están en docs/history.json
-   (30 min: compra `b`, venta `s`, oficial `o`) y que se perdieron cuando el reloj estuvo
-   caído. Se comparan por marca de tiempo (tolerancia 60 s) para no duplicar.
-
-2. Escribe docs/api/grafico.json con velas base de 5 minutos en formato compacto
+1. Escribe docs/api/grafico.json con velas base de 5 minutos en formato compacto
    [tiempo, apertura, máximo, mínimo, cierre, venta] más la serie del oficial.
    El navegador agrega esas velas a 15m / 1h / 4h / 1D y recorta el rango elegido,
    así el sitio sigue siendo estático (GitHub Pages) y no hace falta un servidor.
@@ -112,9 +108,7 @@ def oficial(hist_json):
 
 def main():
     filas = leer_csv(CSV)
-    antes = len(filas)
-    recuperadas = fusionar(filas, HIST)
-    print(f"mediciones: {antes} → {len(filas)} (+{recuperadas} del histórico del reloj)")
+    print(f"mediciones: {len(filas)}")
 
     velas = velas_base(filas)
     oficial_serie = oficial(HIST)

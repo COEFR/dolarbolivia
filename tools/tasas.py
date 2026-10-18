@@ -18,6 +18,7 @@ Lo corre un GitHub Action cada 10 minutos: precio al día sin VPS y sin costo.
 """
 import json
 import os
+import sys
 import re
 import urllib.request
 from datetime import datetime, timezone
@@ -120,23 +121,28 @@ def main():
           f" · oficial {respuesta['official']['rate']} · estado {estado}")
 
     # MEDICIÓN PARA EL GRÁFICO: una fila por corrida en data/historial_p2p.csv
-    # (formato: fecha_iso,compra,venta). De acá sale el gráfico USDT/BOB estilo TradingView:
-    # tools/historial.py lo agrupa en velas de 15 min y lo publica en /api/historial.json.
-    try:
-        ruta_csv = os.path.join(AQUI, "data", "historial_p2p.csv")
-        os.makedirs(os.path.dirname(ruta_csv), exist_ok=True)
-        marca = ahora.strftime("%Y-%m-%dT%H:%M")
-        ultima = ""
-        if os.path.exists(ruta_csv):
-            with open(ruta_csv) as fh:
-                for linea in fh:
-                    pass
-                ultima = linea.split(",")[0][:16] if linea.strip() else ""
-        if ultima != marca:                      # no repetir el mismo minuto
-            with open(ruta_csv, "a") as fh:
-                fh.write(f"{ahora.isoformat()},{round(compra, 2)},{round(venta, 2)}\n")
-    except Exception as e:
-        print(f"  ! no pude anotar la medición del gráfico: {str(e)[:50]}")
+    # Con --sin-muestra se saltea: en ese modo el único que anota es tools/muestra.py
+    # (cada minuto), y así no hay dos procesos escribiendo el mismo archivo.
+    if "--sin-muestra" in sys.argv:
+        print("  (sin muestra: la anota tools/muestra.py)")
+    else:
+        # (formato: fecha_iso,compra,venta). De acá sale el gráfico USDT/BOB:
+        # tools/grafico.py lo agrupa en velas y lo publica en /api/grafico.json.
+        try:
+            ruta_csv = os.path.join(AQUI, "data", "historial_p2p.csv")
+            os.makedirs(os.path.dirname(ruta_csv), exist_ok=True)
+            marca = ahora.strftime("%Y-%m-%dT%H:%M")
+            ultima = ""
+            if os.path.exists(ruta_csv):
+                with open(ruta_csv) as fh:
+                    for linea in fh:
+                        pass
+                    ultima = linea.split(",")[0][:16] if linea.strip() else ""
+            if ultima != marca:                      # no repetir el mismo minuto
+                with open(ruta_csv, "a") as fh:
+                    fh.write(f"{ahora.isoformat()},{round(compra, 2)},{round(venta, 2)}\n")
+        except Exception as e:
+            print(f"  ! no pude anotar la medición del gráfico: {str(e)[:50]}")
 
     # histórico: una fila cada ~30 min
     try:

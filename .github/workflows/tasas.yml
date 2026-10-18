@@ -23,7 +23,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Traer cotizaciones
-        run: python tools/tasas.py
+        # --sin-muestra: el CSV de las velas lo escribe tools/muestra.py (workflow muestreo).
+        # Un solo escritor por archivo, así no hay conflictos de rebase.
+        run: python tools/tasas.py --sin-muestra
       - name: Actualizar las velas del gráfico USDT/BOB
         # historial.py cosecha lo que falte de docs/history.json, agrupa en velas de 15 min
         # y escribe docs/api/historial.json (lo que dibuja el gráfico del sitio).
@@ -35,7 +37,7 @@ jobs:
         run: |
           git config user.name "DolarBolivia"
           git config user.email "bot@users.noreply.github.com"
-          git add docs/api/rates docs/history.json data/historial_p2p.csv docs/api/historial.json docs/api/grafico.json
+          git add docs/api/rates docs/history.json docs/api/historial.json docs/api/grafico.json
           if git diff --cached --quiet; then
             echo "sin cambios"
             exit 0

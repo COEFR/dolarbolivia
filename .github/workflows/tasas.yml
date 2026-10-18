@@ -24,11 +24,15 @@ jobs:
           python-version: "3.12"
       - name: Traer cotizaciones
         run: python tools/tasas.py
+      - name: Actualizar las velas del gráfico USDT/BOB
+        # historial.py cosecha lo que falte de docs/history.json, agrupa en velas de 15 min
+        # y escribe docs/api/historial.json (lo que dibuja el gráfico del sitio).
+        run: python tools/historial.py --minutos 15
       - name: Guardar en el repo
         run: |
           git config user.name "DolarBolivia"
           git config user.email "bot@users.noreply.github.com"
-          git add docs/api/rates docs/history.json
+          git add docs/api/rates docs/history.json data/historial_p2p.csv docs/api/historial.json
           if git diff --cached --quiet; then
             echo "sin cambios"
             exit 0

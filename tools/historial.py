@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)
 CSV = os.path.join(BASE, "data", "historial_p2p.csv")
+HIST_JSON = os.path.join(BASE, "docs", "history.json")
 SALIDA = os.path.join(BASE, "docs", "api", "historial.json")
 
 
@@ -70,7 +71,46 @@ def importar_csv_ajeno(ruta_csv, salida_csv):
     return nuevos
 
 
-def rellenar_huecos(filas, paso_min=15, horas_atras=24):
+def importar_history(hist_json, salida_csv):
+    """Cosecha los precios que ya publicó el reloj en docs/history.json.
+
+    `tasas.py` corre cada 10 min y deja ahí una fila {t, s, b, o}, pero esa medición no se
+    estaba pasando al CSV del gráfico: si el Action falla unos días, el gráfico queda con un
+    hueco aunque el precio sí se haya medido. Esto rellena solo lo que falta, sin duplicar.
+    """
+    if not os.path.exists(hist_json):
+        return 0
+    try:
+        datos = json.load(open(hist_json, encoding="utf-8"))
+    except (OSError, ValueError):
+        return 0
+    ultima = 0.0
+    if os.path.exists(salida_csv):
+        with open(salida_csv, encoding="utf-8") as f:
+            for linea in f:
+                try:
+                    ultima = max(ultima, datetime.fromisoformat(linea.split(",")[0]).timestamp())
+                except Exception:
+                    continue
+    filas = []
+    for r in datos:
+        try:
+            ts = datetime.fromisoformat(r["t"]).replace(tzinfo=timezone.utc).timestamp()
+            compra, venta = float(r["b"]), float(r["s"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if ts > ultima:
+            filas.append((ts, compra, venta))
+    if not filas:
+        return 0
+    filas.sort()
+    with open(salida_csv, "a", encoding="utf-8") as out:
+        for ts, c, v in filas:
+            out.write(f"{datetime.fromtimestamp(ts, timezone.utc).isoformat()},{c},{v}\n")
+    return len(filas)
+
+
+def rellenar_huecos(filas, paso_min=5, horas_atras=24):
     """Rellena SOLO los últimos días, con el precio actual.
 
     Dos reglas, las dos aprendidas a golpes:
@@ -109,7 +149,7 @@ def rellenar_huecos(filas, paso_min=15, horas_atras=24):
     return salida
 
 
-def agrupar(filas, minutos=15):
+def agrupar(filas, minutos=5):
     """Agrupa en velas OHLC reales: open/high/low/close de cada intervalo."""
     velas = {}
     for ts, compra, venta in filas:
@@ -147,6 +187,9 @@ def main():
         n = importar_csv_ajeno(a.importar, CSV)
         print(f"importadas {n} mediciones del histórico prestado")
 
+    rescatadas = importar_history(HIST_JSON, CSV)
+    if rescatadas:
+        print(f"rescatadas {rescatadas} mediciones de docs/history.json")
     filas = leer_csv(CSV)
     print(f"mediciones totales: {len(filas)}")
     filas = rellenar_huecos(filas)

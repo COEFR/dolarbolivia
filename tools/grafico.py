@@ -17,6 +17,7 @@ BASE = os.path.dirname(AQUI)
 CSV = os.path.join(BASE, "data", "historial_p2p.csv")
 HIST = os.path.join(BASE, "docs", "history.json")
 SALIDA = os.path.join(BASE, "docs", "api", "grafico.json")
+DIARIO = os.path.join(BASE, "data", "historial_diario.json")
 PASO = 5          # minutos por vela base
 TOLERANCIA = 60   # segundos para considerar "la misma medición"
 
@@ -115,17 +116,23 @@ def main():
     if not velas:
         print("sin datos")
         return 1
+    diario = []
+    try:
+        diario = json.load(open(DIARIO, encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
     salida = {
         "par": "USDT/BOB",
         "base": PASO,
         "actualizado": datetime.now(timezone.utc).isoformat(),
         "velas": velas,
         "oficial": oficial_serie,
+        "dia": diario,
     }
     os.makedirs(os.path.dirname(SALIDA), exist_ok=True)
     with open(SALIDA, "w", encoding="utf-8") as f:
         json.dump(salida, f, separators=(",", ":"))
-    print(f"velas de {PASO} min: {len(velas)} · oficial: {len(oficial_serie)} puntos")
+    print(f"velas de {PASO} min: {len(velas)} · diarias: {len(diario)} · oficial: {len(oficial_serie)} puntos")
     print(f"escrito: {SALIDA} ({os.path.getsize(SALIDA) / 1024:.0f} KB)")
     return 0
 

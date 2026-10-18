@@ -131,16 +131,26 @@ function calcularBrecha(velas: Vela[], oficial: Punto[]): Punto[] {
   return salida;
 }
 
+function leerParam(nombre: string): string | null {
+  try {
+    return new URLSearchParams(window.location.search).get(nombre);
+  } catch {
+    return null;
+  }
+}
+
 export const PriceChart: React.FC<Props> = ({ data }) => {
   const caja = useRef<HTMLDivElement | null>(null);
   const [base, setBase] = useState<VelaBase[]>([]);
   const [oficial, setOficial] = useState<Punto[]>([]);
+  // serie diaria (2024 en adelante) para la vista de 1D y los rangos largos
+  const [diaria, setDiaria] = useState<Vela[]>([]);
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
-  const [rango, setRango] = useState('7d');
+  const [rango, setRango] = useState(() => leerParam('rango') || '7d');
   // 1 h por defecto: es el intervalo donde hoy hay una medición cada media hora (2 por
   // vela). Con 15 m hay media medición por vela y salen velas planas; el muestreo por
   // minuto que corre desde las 20:30 va a permitir volver a 15 m en uno o dos días.
-  const [intervalo, setIntervalo] = useState(60);
+  const [intervalo, setIntervalo] = useState(() => Number(leerParam('intervalo')) || 60);
   const [modo, setModo] = useState<'velas' | 'linea'>('velas');
   // el oficial arranca apagado: con la escala compartida comprime las velas del paralelo
   const [capas, setCapas] = useState({ oficial: false, banda: false, medias: false, brecha: false });
@@ -154,7 +164,11 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
           t: v[0] + DESFASE, o: v[1], h: v[2], l: v[3], c: v[4], v: v[5],
         })) as VelaBase[];
         const serieOficial = (d.oficial || []).map((p: number[]) => ({ time: p[0] + DESFASE, value: p[1] })) as Punto[];
+        const serieDiaria = (d.dia || []).map((v: number[]) => ({
+          time: v[0] + DESFASE, open: v[1], high: v[2], low: v[3], close: v[4], venta: v[5],
+        })) as Vela[];
         setBase(velas);
+        setDiaria(serieDiaria);
         setOficial(serieOficial);
         setEstado('ok');
       })
@@ -163,12 +177,18 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
 
   const { velas: visibles, oficialVisible } = useMemo(() => {
     const r = rangoFechas(rango);
+    const oficialVisible = oficial.filter(p => p.time >= r.desde - 1800 && p.time <= r.hasta + 1800);
+    if (intervalo === 1440 && diaria.length) {
+      // 1D: se usa el histórico diario (2024 → hoy), que no tiene huecos; agregar las
+      // mediciones de 5 min a un día daría velas incompletas.
+      return {
+        velas: diaria.filter(v => v.time >= r.desde && v.time <= r.hasta),
+        oficialVisible,
+      };
+    }
     const dentro = base.filter(v => v.t >= r.desde && v.t <= r.hasta);
-    return {
-      velas: agrupar(dentro, intervalo),
-      oficialVisible: oficial.filter(p => p.time >= r.desde - 1800 && p.time <= r.hasta + 1800),
-    };
-  }, [base, oficial, rango, intervalo]);
+    return { velas: agrupar(dentro, intervalo), oficialVisible };
+  }, [base, diaria, oficial, rango, intervalo]);
 
   useEffect(() => {
     if (!caja.current || visibles.length === 0) return;
@@ -266,6 +286,18 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
 
   const alternarCapa = (capa: keyof typeof capas) => setCapas(prev => ({ ...prev, [capa]: !prev[capa] }));
 
+  // el estado del gráfico queda en la URL, para poder compartir una vista
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('rango', rango);
+      url.searchParams.set('intervalo', String(intervalo));
+      window.history.replaceState(null, '', url);
+    } catch {
+      /* sin URL (SSR o navegador raro): no pasa nada */
+    }
+  }, [rango, intervalo]);
+
   return (
     <section className="py-8 animate-fade-up-delay">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -356,7 +388,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-[10px] font-mono text-[#787b86]">
           <span>
-            Precio de compra P2P · velas de {etiquetaIntervalo} · hora de Bolivia 
+            Precio de compra P2P · velas de {etiquetaIntervalo} · hora de Bolivia · histórico diario: dolarenbolivia.com 
             {maximo !== null && minimo !== null && (
               <> · máx <span className="text-[#d1d4dc]">{maximo.toFixed(2)}</span> · mín <span className="text-[#d1d4dc]">{minimo.toFixed(2)}</span></>
             )}

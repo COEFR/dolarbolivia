@@ -138,7 +138,8 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   const [rango, setRango] = useState('7d');
   const [intervalo, setIntervalo] = useState(15);
   const [modo, setModo] = useState<'velas' | 'linea'>('velas');
-  const [capas, setCapas] = useState({ oficial: true, banda: false, medias: false, brecha: false });
+  // el oficial arranca apagado: con la escala compartida comprime las velas del paralelo
+  const [capas, setCapas] = useState({ oficial: false, banda: false, medias: false, brecha: false });
   const [leyenda, setLeyenda] = useState<Vela | null>(null);
 
   useEffect(() => {

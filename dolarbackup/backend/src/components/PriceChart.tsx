@@ -136,7 +136,10 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   const [oficial, setOficial] = useState<Punto[]>([]);
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
   const [rango, setRango] = useState('7d');
-  const [intervalo, setIntervalo] = useState(15);
+  // 1h por defecto: con una medición cada ~30 min (hasta hoy) las velas de 15 m quedaban
+  // con una sola muestra y se dibujaban como rayas. Con el muestreo por minuto ya activo,
+  // 15 m se llena solo en unas horas.
+  const [intervalo, setIntervalo] = useState(60);
   const [modo, setModo] = useState<'velas' | 'linea'>('velas');
   // el oficial arranca apagado: con la escala compartida comprime las velas del paralelo
   const [capas, setCapas] = useState({ oficial: false, banda: false, medias: false, brecha: false });
@@ -179,7 +182,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       },
       grid: { vertLines: { color: TV.grilla }, horzLines: { color: TV.grilla } },
       rightPriceScale: { borderColor: TV.borde, scaleMargins: { top: 0.1, bottom: 0.1 } },
-      timeScale: { borderColor: TV.borde, timeVisible: true, secondsVisible: false, rightOffset: 4, barSpacing: 6 },
+      timeScale: { borderColor: TV.borde, timeVisible: true, secondsVisible: false, rightOffset: 4, barSpacing: 8 },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: { color: TV.cruz, width: 1, style: 2, labelBackgroundColor: TV.borde },

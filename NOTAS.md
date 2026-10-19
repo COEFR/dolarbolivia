@@ -35,3 +35,20 @@
   `/grafico/parallel?range=&interval=` y `/grafico/official?range=` en servidor).
 - Pendiente: enlazarlo desde la portada (el bundle React actual no tiene fuentes en el repo), herramientas
   de dibujo y estocástico (la referencia las tiene), y decidir si reemplaza al gráfico Recharts actual.
+
+## 2026-10-19 · Gráfico de la portada y relojes fuera de la VPS
+
+- **El gráfico vive en la portada** (`PriceChart`). Se borró la página duplicada `/grafico/` (404).
+- **Datos**: `docs/api/grafico.json` = velas base de 5 min + serie del oficial + `dia` (819 velas
+  diarias desde 2024) + `ext` (tramos ya agregados: 7 d de 15m, 30 d de 1h, 6 m de 4h, 1 a de 1d,
+  publicados por dolarenbolivia.com y citados en el pie).
+- **Muestreo por minuto** (`tools/muestra.py` + workflow `muestreo.yml`): 4 decimales (promedio de
+  los 15 anuncios), que es lo que da cuerpo y mecha a las velas.
+- **Arreglos de esta ronda**: ancho de vela calculado (barSpacing = ancho/cantidad; antes las 820
+  velas no entraban y la serie parecía terminar en julio), eje con fechas en 1D/1S y hora local del
+  navegador en intradía, paneles de brecha/estocástico por factor de estiramiento, vela del día y
+  vela en curso agregadas al final, y `Todo` abre en semanal (1S).
+- **Relojes en cron-job.org**: `tasas.yml` cada 5 min y `muestreo.yml` cada 1 min. Los crons de la
+  VPS (`disparar_tasas.sh`, `disparar_muestra.sh`) quedaron **`#PAUSADO`**.
+- **Verificado**: muestreo cada minuto, tasas cada ~5 min, `/api/rates` con datos de 2-3 minutos,
+  commits `muestra HH:MM` entrando.

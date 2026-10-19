@@ -174,11 +174,14 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   // cubren el pasado que nosotros no medimos (7 d de 15m, 30 d de 1h, 6 m de 4h)
   const [externo, setExterno] = useState<Record<string, Vela[]>>({});
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
-  const [rango, setRango] = useState(() => leerParam('rango') || '7d');
+    // por defecto el gráfico abre con TODO el histórico (2024 → hoy)
+  const [rango, setRango] = useState(() => leerParam('rango') || 'todo');
   // 1 h por defecto: es el intervalo donde hoy hay una medición cada media hora (2 por
   // vela). Con 15 m hay media medición por vela y salen velas planas; el muestreo por
   // minuto que corre desde las 20:30 va a permitir volver a 15 m en uno o dos días.
-  const [intervalo, setIntervalo] = useState(() => Number(leerParam('intervalo')) || 60);
+    // con "Todo" el único intervalo que cubre todo el rango es el diario; si el visitante
+  // elige otro, el gráfico avisa y muestra lo que haya
+  const [intervalo, setIntervalo] = useState(() => Number(leerParam('intervalo')) || 1440);
   const [modo, setModo] = useState<'velas' | 'linea'>('velas');
   // el oficial arranca apagado: con la escala compartida comprime las velas del paralelo
   const [capas, setCapas] = useState(() => {

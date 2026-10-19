@@ -351,8 +351,22 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
     };
     chart.subscribeCrosshairMove(alMover);
 
-    chart.timeScale().fitContent();
-    return () => { chart.unsubscribeCrosshairMove(alMover); chart.remove(); };
+    // En vez de fitContent() (que a veces deja la vista a medio camino cuando el gráfico
+    // todavía se está midiendo), se fija explícitamente todo el rango de velas.
+    const ajustar = () => {
+      try {
+        chart.timeScale().setVisibleLogicalRange({ from: -2, to: visibles.length + 1 });
+      } catch {
+        chart.timeScale().fitContent();
+      }
+    };
+    ajustar();
+    const t = window.setTimeout(ajustar, 50);
+    return () => {
+      window.clearTimeout(t);
+      chart.unsubscribeCrosshairMove(alMover);
+      chart.remove();
+    };
   }, [visibles, oficialVisible, modo, capas]);
 
   const ultimo = visibles.length ? visibles[visibles.length - 1] : null;

@@ -215,16 +215,16 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   // cubren el pasado que nosotros no medimos (7 d de 15m, 30 d de 1h, 6 m de 4h)
   const [externo, setExterno] = useState<Record<string, Vela[]>>({});
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'error'>('cargando');
-    // Abre en el último mes con velas de 1 hora: es la vista donde las velas recientes se
-  // ven de verdad. En "Todo" entran 2 años en el mismo ancho y los últimos meses (precio
-  // plano en ~11,85 con un pico de 20 en 2025) quedan en 2-3 píxeles: no se ven.
-  const [rango, setRango] = useState(() => leerParam('rango') || '1m');
-  // 1 h por defecto: es el intervalo donde hoy hay una medición cada media hora (2 por
-  // vela). Con 15 m hay media medición por vela y salen velas planas; el muestreo por
-  // minuto que corre desde las 20:30 va a permitir volver a 15 m en uno o dos días.
+  // Abre en la última semana con velas de 15 m: con el muestreo por minuto cada vela
+  // junta ~15 mediciones y se ve el cuerpo y la mecha. En "Todo" entran 2 años en el
+  // mismo ancho y los últimos meses quedan en 2-3 píxeles: no se ven.
+  const [rango, setRango] = useState(() => leerParam('rango') || '7d');
+  // 15 m por defecto: el muestreo por minuto deja ~15 mediciones por vela (mediana
+  // de 15 en las últimas 24 h, medido el 19-oct), así que la vela tiene cuerpo y
+  // mecha. Con 1 h entran 60 mediciones por vela y el detalle se pierde.
     // con "Todo" el único intervalo que cubre todo el rango es el diario; si el visitante
   // elige otro, el gráfico avisa y muestra lo que haya
-  const [intervalo, setIntervalo] = useState(() => Number(leerParam('intervalo')) || 60);
+  const [intervalo, setIntervalo] = useState(() => Number(leerParam('intervalo')) || 15);
   const [modo, setModo] = useState<'velas' | 'linea'>('velas');
   // el oficial arranca apagado: con la escala compartida comprime las velas del paralelo
   const [capas, setCapas] = useState(() => {
@@ -280,10 +280,10 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   const { velas: visibles, oficialVisible, nota } = useMemo<{ velas: Vela[]; oficialVisible: Punto[]; nota?: string }>(() => {
     const r = rangoFechas(rango);
     const oficialVisible = oficial.filter(p => p.time >= r.desde - 1800 && p.time <= r.hasta + 1800);
-    // tramo ya agregado de ellos, si cubre el rango pedido
-    const clave: Record<number, string> = { 15: '15m', 60: '1h', 240: '4h', 1440: '1d' };
+    // tramo ya agregado de ellos, si cubre el rango pedido (con 2 días de margen: el de
+    // 15 m arranca el 13-oct, así que sirve igual para la ventana de 7 d)
     const serieExt = externo[clave[intervalo]];
-    if (intervalo !== 1440 && serieExt && serieExt.length && serieExt[0].time <= r.desde + 3600) {
+    if (intervalo !== 1440 && serieExt && serieExt.length && serieExt[0].time <= r.desde + 172800) {
       const recortadas = serieExt.filter(v => v.time >= r.desde && v.time <= r.hasta);
       return { velas: completarConNuestras(recortadas, base, intervalo), oficialVisible };
     }

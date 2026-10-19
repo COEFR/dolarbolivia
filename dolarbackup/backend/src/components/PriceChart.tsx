@@ -123,6 +123,25 @@ function mediaMovil(velas: Vela[], periodo: number): Punto[] {
   return salida;
 }
 
+function completarConNuestras(velas: Vela[], base: VelaBase[], minutos: number): Vela[] {
+  // El tramo traído de afuera termina en la última vela publicada (puede tener 10-60 min
+  // de retraso). Con nuestras mediciones se arma la vela en curso para que el extremo
+  // derecho no quede vacío.
+  if (!velas.length || !base.length) return velas;
+  const ultima = velas[velas.length - 1].time;
+  const nuevas = base.filter(v => v.t > ultima);
+  if (!nuevas.length) return velas;
+  const paso = minutos * 60;
+  const bloque = Math.floor(nuevas[nuevas.length - 1].t / paso) * paso;
+  if (bloque <= ultima) return velas;
+  const o = nuevas[0].o;
+  const h = nuevas.reduce((a, v) => Math.max(a, v.h), -Infinity);
+  const l = nuevas.reduce((a, v) => Math.min(a, v.l), Infinity);
+  const c = nuevas[nuevas.length - 1].c;
+  const venta = nuevas[nuevas.length - 1].v;
+  return [...velas.filter(v => v.time < bloque), { time: bloque, open: o, high: h, low: l, close: c, venta }];
+}
+
 function estocastico(velas: Vela[], periodo = 14): Punto[] {
   const salida: Punto[] = [];
   for (let i = periodo - 1; i < velas.length; i++) {
@@ -233,7 +252,8 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
     const clave: Record<number, string> = { 15: '15m', 60: '1h', 240: '4h', 1440: '1d' };
     const serieExt = externo[clave[intervalo]];
     if (intervalo !== 1440 && serieExt && serieExt.length && serieExt[0].time <= r.desde + 3600) {
-      return { velas: serieExt.filter(v => v.time >= r.desde && v.time <= r.hasta), oficialVisible };
+      const recortadas = serieExt.filter(v => v.time >= r.desde && v.time <= r.hasta);
+      return { velas: completarConNuestras(recortadas, base, intervalo), oficialVisible };
     }
     if (intervalo !== 1440 && diaria.length && (!serieExt || !serieExt.length || serieExt[0].time > r.desde + 3600)) {
       // Para rangos más largos que el tramo disponible no hay velas de ese intervalo:
@@ -243,12 +263,27 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       if (velas.length) return { velas, oficialVisible, nota: `Sin velas de ${etiqueta} para este rango: se muestra 1D.` };
     }
     if (intervalo === 1440 && diaria.length) {
-      // 1D: se usa el histórico diario (2024 → hoy), que no tiene huecos; agregar las
-      // mediciones de 5 min a un día daría velas incompletas.
-      return {
-        velas: diaria.filter(v => v.time >= r.desde && v.time <= r.hasta),
-        oficialVisible,
-      };
+      // 1D: el histórico diario llega hasta ayer (el CSV se publica una vez por día).
+      // Si ya tenemos mediciones de hoy, se agrega la vela del día para que el extremo
+      // derecho no quede vacío.
+      let velasDia = diaria.filter(v => v.time >= r.desde && v.time <= r.hasta);
+      const hoy = new Date();
+      const medianocheUtcDeHoy = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()) / 1000;
+      const ultima = velasDia.length ? velasDia[velasDia.length - 1].time : 0;
+      if (base.length && ultima < medianocheUtcDeHoy) {
+        const deHoy = base.filter(v => v.t >= medianocheUtcDeHoy + DESFASE);
+        if (deHoy.length) {
+          const o = deHoy[0].o;
+          const h = deHoy.reduce((a, v) => Math.max(a, v.h), -Infinity);
+          const l = deHoy.reduce((a, v) => Math.min(a, v.l), Infinity);
+          const c = deHoy[deHoy.length - 1].c;
+          const venta = deHoy[deHoy.length - 1].v;
+          if (medianocheUtcDeHoy >= r.desde && medianocheUtcDeHoy <= r.hasta) {
+            velasDia = [...velasDia, { time: medianocheUtcDeHoy, open: o, high: h, low: l, close: c, venta }];
+          }
+        }
+      }
+      return { velas: velasDia, oficialVisible };
     }
     const dentro = base.filter(v => v.t >= r.desde && v.t <= r.hasta);
     return { velas: agrupar(dentro, intervalo), oficialVisible };

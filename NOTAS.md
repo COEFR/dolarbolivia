@@ -52,3 +52,14 @@
   VPS (`disparar_tasas.sh`, `disparar_muestra.sh`) quedaron **`#PAUSADO`**.
 - **Verificado**: muestreo cada minuto, tasas cada ~5 min, `/api/rates` con datos de 2-3 minutos,
   commits `muestra HH:MM` entrando.
+
+## 2026-10-19 (tarde) · Portada de vuelta en velas de 15 m
+
+- Densidad medida sobre 96 bloques completos de 15 m en las últimas 24 h: **mediana 15 mediciones**
+  por bloque (~1 por minuto; mínimo 14 en los completos). El umbral pedido era 5.
+- `PriceChart.tsx`: `intervalo` por defecto 60 → **15**, y `rango` por defecto `1m` → **7d**:
+  con 1 mes el tramo externo de 15 m (arranca el 13-oct) no cubre el rango y el gráfico caía a 1D.
+  El margen de cobertura pasó de 1 h a 2 días (172800) para que la ventana de 7 d use ese tramo.
+- Verificado en producción: se sirve `assets/index-BmCMX0MD.js`, el DOM dice «velas de 15m» y no
+  aparece el aviso «Sin velas de 15m». Bug propio en el primer push: al reemplazar comentarios por
+  número de línea se borró `const clave` y el sitio quedó ~4 min sin renderizar; corregido y republicado.

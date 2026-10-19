@@ -386,8 +386,6 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
         priceFormat: formatoPct,
       }, 1);
       serieBrecha.setData(calcularBrecha(visibles, oficialVisible).map(p => ({ time: p.time as never, value: p.value })));
-      const alto = caja.current?.clientHeight || 400;
-      chart.panes()[1]?.setHeight(Math.round(alto * 0.18));
     }
 
     if (capas.estocastico && visibles.length > 15) {
@@ -404,8 +402,18 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       }, panel);
       sK.setData(k.map(p => ({ time: p.time as never, value: p.value })));
       sD.setData(d.map(p => ({ time: p.time as never, value: p.value })));
-      const altoTotal = caja.current?.clientHeight || 400;
-      chart.panes()[panel]?.setHeight(Math.round(altoTotal * 0.22));
+    }
+
+    // Las alturas se fijan al final: si se piden antes de crear el panel, la librería las
+    // ignora y la brecha quedaba en una franja de 10 px.
+    const altoPanel = caja.current?.clientHeight || 400;
+    if (capas.brecha && capas.estocastico) {
+      chart.panes()[1]?.setHeight(Math.round(altoPanel * 0.16));
+      chart.panes()[2]?.setHeight(Math.round(altoPanel * 0.22));
+    } else if (capas.brecha) {
+      chart.panes()[1]?.setHeight(Math.round(altoPanel * 0.20));
+    } else if (capas.estocastico) {
+      chart.panes()[1]?.setHeight(Math.round(altoPanel * 0.24));
     }
 
     setLeyenda(visibles[visibles.length - 1] || null);

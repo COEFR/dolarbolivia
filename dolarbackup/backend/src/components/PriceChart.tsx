@@ -404,18 +404,6 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       sD.setData(d.map(p => ({ time: p.time as never, value: p.value })));
     }
 
-    // Las alturas se fijan al final: si se piden antes de crear el panel, la librería las
-    // ignora y la brecha quedaba en una franja de 10 px.
-    const altoPanel = caja.current?.clientHeight || 400;
-    if (capas.brecha && capas.estocastico) {
-      chart.panes()[1]?.setHeight(Math.round(altoPanel * 0.16));
-      chart.panes()[2]?.setHeight(Math.round(altoPanel * 0.22));
-    } else if (capas.brecha) {
-      chart.panes()[1]?.setHeight(Math.round(altoPanel * 0.20));
-    } else if (capas.estocastico) {
-      chart.panes()[1]?.setHeight(Math.round(altoPanel * 0.24));
-    }
-
     setLeyenda(visibles[visibles.length - 1] || null);
 
     const alMover = (param: any) => {
@@ -441,6 +429,18 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
         chart.timeScale().setVisibleLogicalRange({ from: 0, to: visibles.length - 1 });
       } catch {
         chart.timeScale().fitContent();
+      }
+      // las alturas de los paneles se fijan acá: recién en este punto la librería ya
+      // calculó el layout y respeta setHeight
+      const altoPanel = caja.current?.clientHeight || 400;
+      const panes = chart.panes();
+      if (capas.brecha && capas.estocastico) {
+        panes[1]?.setHeight(Math.round(altoPanel * 0.16));
+        panes[2]?.setHeight(Math.round(altoPanel * 0.22));
+      } else if (capas.brecha) {
+        panes[1]?.setHeight(Math.round(altoPanel * 0.20));
+      } else if (capas.estocastico) {
+        panes[1]?.setHeight(Math.round(altoPanel * 0.24));
       }
     };
     ajustar();

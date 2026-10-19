@@ -280,8 +280,9 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   const { velas: visibles, oficialVisible, nota } = useMemo<{ velas: Vela[]; oficialVisible: Punto[]; nota?: string }>(() => {
     const r = rangoFechas(rango);
     const oficialVisible = oficial.filter(p => p.time >= r.desde - 1800 && p.time <= r.hasta + 1800);
-    // tramo ya agregado de ellos, si cubre el rango pedido (con 2 días de margen: el de
-    // 15 m arranca el 13-oct, así que sirve igual para la ventana de 7 d)
+    // tramo ya agregado de ellos, si cubre el rango pedido; con 2 días de margen porque
+    // el tramo de 15 m arranca el 13-oct y aun así sirve para la ventana de 7 d
+    const clave: Record<number, string> = { 15: '15m', 60: '1h', 240: '4h', 1440: '1d' };
     const serieExt = externo[clave[intervalo]];
     if (intervalo !== 1440 && serieExt && serieExt.length && serieExt[0].time <= r.desde + 172800) {
       const recortadas = serieExt.filter(v => v.time >= r.desde && v.time <= r.hasta);

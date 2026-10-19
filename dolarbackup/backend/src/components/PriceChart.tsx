@@ -63,6 +63,7 @@ const INTERVALOS: { min: number; etiqueta: string }[] = [
   { min: 60, etiqueta: '1h' },
   { min: 240, etiqueta: '4h' },
   { min: 1440, etiqueta: '1D' },
+  { min: 10080, etiqueta: '1S' },
 ];
 
 const CAPAS: { id: 'oficial' | 'banda' | 'medias' | 'brecha' | 'estocastico'; etiqueta: string }[] = [
@@ -121,6 +122,27 @@ function mediaMovil(velas: Vela[], periodo: number): Punto[] {
     if (i >= periodo - 1) salida.push({ time: velas[i].time, value: Number((suma / periodo).toFixed(2)) });
   }
   return salida;
+}
+
+function agruparSemanal(diarias: Vela[]): Vela[] {
+  // 2 años de velas diarias entran en ~1.300 px: cada vela mide 1 px y no se ve nada.
+  // Agrupadas por semana (lunes a domingo) entran ~120 velas y se leen bien.
+  const semanas: Vela[] = [];
+  for (const d of diarias) {
+    const fecha = new Date(d.time * 1000);
+    const diaSemana = (fecha.getUTCDay() + 6) % 7;            // 0 = lunes
+    const lunes = d.time - diaSemana * 86400;
+    const ultima = semanas[semanas.length - 1];
+    if (ultima && ultima.time === lunes) {
+      ultima.high = Math.max(ultima.high, d.high);
+      ultima.low = Math.min(ultima.low, d.low);
+      ultima.close = d.close;
+      ultima.venta = d.venta;
+    } else {
+      semanas.push({ time: lunes, open: d.open, high: d.high, low: d.low, close: d.close, venta: d.venta });
+    }
+  }
+  return semanas;
 }
 
 function completarConNuestras(velas: Vela[], base: VelaBase[], minutos: number): Vela[] {
@@ -200,7 +222,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
   // minuto que corre desde las 20:30 va a permitir volver a 15 m en uno o dos días.
     // con "Todo" el único intervalo que cubre todo el rango es el diario; si el visitante
   // elige otro, el gráfico avisa y muestra lo que haya
-  const [intervalo, setIntervalo] = useState(() => Number(leerParam('intervalo')) || 1440);
+  const [intervalo, setIntervalo] = useState(() => Number(leerParam('intervalo')) || 10080);
   const [modo, setModo] = useState<'velas' | 'linea'>('velas');
   // el oficial arranca apagado: con la escala compartida comprime las velas del paralelo
   const [capas, setCapas] = useState(() => {
@@ -255,12 +277,17 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       const recortadas = serieExt.filter(v => v.time >= r.desde && v.time <= r.hasta);
       return { velas: completarConNuestras(recortadas, base, intervalo), oficialVisible };
     }
-    if (intervalo !== 1440 && diaria.length && (!serieExt || !serieExt.length || serieExt[0].time > r.desde + 3600)) {
+    if (intervalo !== 1440 && intervalo !== 10080 && diaria.length && (!serieExt || !serieExt.length || serieExt[0].time > r.desde + 3600)) {
       // Para rangos más largos que el tramo disponible no hay velas de ese intervalo:
       // en vez de dibujar puntos planos (inventar el intradía), se muestra el diario.
       const velas = diaria.filter(v => v.time >= r.desde && v.time <= r.hasta);
       const etiqueta = INTERVALOS.find(i => i.min === intervalo)?.etiqueta || `${intervalo}m`;
       if (velas.length) return { velas, oficialVisible, nota: `Sin velas de ${etiqueta} para este rango: se muestra 1D.` };
+    }
+    if (intervalo === 10080 && diaria.length) {
+      // semanal: se arma desde el histórico diario (ver agruparSemanal)
+      const semanas = agruparSemanal(diaria).filter(v => v.time >= r.desde - 7 * 86400 && v.time <= r.hasta);
+      return { velas: semanas, oficialVisible };
     }
     if (intervalo === 1440 && diaria.length) {
       // 1D: el histórico diario llega hasta ayer (el CSV se publica una vez por día).

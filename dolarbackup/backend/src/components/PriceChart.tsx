@@ -329,7 +329,9 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       },
       grid: { vertLines: { color: TV.grilla }, horzLines: { color: TV.grilla } },
       rightPriceScale: { borderColor: TV.borde, scaleMargins: { top: 0.1, bottom: 0.1 } },
-      timeScale: { borderColor: TV.borde, timeVisible: true, secondsVisible: false, rightOffset: 4, barSpacing: 6 },
+            // con velas diarias o semanales el eje muestra solo la fecha: si muestra la hora,
+      // una vela de las 00:00 UTC aparece como "20:00" (hora de Bolivia) y confunde
+      timeScale: { borderColor: TV.borde, timeVisible: intervalo < 1440 && !nota, secondsVisible: false, rightOffset: intervalo >= 1440 ? 1 : 4, barSpacing: 6 },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: { color: TV.cruz, width: 1, style: 2, labelBackgroundColor: TV.borde },
@@ -424,12 +426,20 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
     };
     ajustar();
     const t = window.setTimeout(ajustar, 50);
+    // handle de diagnóstico: permite comprobar qué se dibujó (no se usa en la interfaz)
+    (window as any).__grafico = {
+      intervalo,
+      rango,
+      velas: visibles.length,
+      primera: visibles[0] ? new Date(visibles[0].time * 1000).toISOString() : null,
+      ultima: visibles.length ? new Date(visibles[visibles.length - 1].time * 1000).toISOString() : null,
+    };
     return () => {
       window.clearTimeout(t);
       chart.unsubscribeCrosshairMove(alMover);
       chart.remove();
     };
-  }, [visibles, oficialVisible, modo, capas]);
+  }, [visibles, oficialVisible, modo, capas, nota, intervalo]);
 
   const ultimo = visibles.length ? visibles[visibles.length - 1] : null;
   const v = leyenda;
@@ -550,6 +560,9 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
           </div>
         )}
         {estado === 'ok' && visibles.length > 0 && <div ref={caja} className="h-[400px] w-full" />}
+        <div className="px-4 pt-1 text-[10px] font-mono text-white/25">
+          Arrastrá o usá la rueda del mouse para hacer zoom en un tramo.
+        </div>
         {nota && (
           <div className="px-4 py-1 text-[10px] font-mono text-[#f0b90b]/80">{nota}</div>
         )}

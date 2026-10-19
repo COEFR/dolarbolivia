@@ -238,7 +238,15 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
     };
   });
   const [copiado, setCopiado] = useState(false);
+  // nombre del archivo JS que está corriendo: sirve para saber si el navegador está
+  // mostrando la última versión o una guardada en caché
+  const [version, setVersion] = useState('');
   const [leyenda, setLeyenda] = useState<Vela | null>(null);
+
+  useEffect(() => {
+    const etiqueta = document.querySelector('script[type="module"][src]') as HTMLScriptElement | null;
+    if (etiqueta) setVersion((etiqueta.src.split('/').pop() || '').replace('index-', '').replace('.js', ''));
+  }, []);
 
   useEffect(() => {
     fetch('api/grafico.json')
@@ -616,6 +624,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
           <span>
             {ultimo && <>último cierre <span className="text-[#d1d4dc]">{ultimo.close.toFixed(2)}</span></>}
             {' · '}oficial BCB <span className="text-[#d1d4dc]">{data.official.buyRate.toFixed(2)}</span>
+            {version && <> · <span className="text-white/25">v {version}</span></>}
           </span>
         </div>
       </div>

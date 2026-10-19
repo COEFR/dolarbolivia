@@ -386,7 +386,8 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
         priceFormat: formatoPct,
       }, 1);
       serieBrecha.setData(calcularBrecha(visibles, oficialVisible).map(p => ({ time: p.time as never, value: p.value })));
-      chart.panes()[1]?.setHeight(110);
+      const alto = caja.current?.clientHeight || 400;
+      chart.panes()[1]?.setHeight(Math.round(alto * 0.18));
     }
 
     if (capas.estocastico && visibles.length > 15) {
@@ -403,7 +404,8 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       }, panel);
       sK.setData(k.map(p => ({ time: p.time as never, value: p.value })));
       sD.setData(d.map(p => ({ time: p.time as never, value: p.value })));
-      chart.panes()[panel]?.setHeight(110);
+      const altoTotal = caja.current?.clientHeight || 400;
+      chart.panes()[panel]?.setHeight(Math.round(altoTotal * 0.22));
     }
 
     setLeyenda(visibles[visibles.length - 1] || null);

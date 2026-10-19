@@ -430,17 +430,16 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
       } catch {
         chart.timeScale().fitContent();
       }
-      // las alturas de los paneles se fijan acá: recién en este punto la librería ya
-      // calculó el layout y respeta setHeight
-      const altoPanel = caja.current?.clientHeight || 400;
+      // El reparto se hace por FACTOR de estiramiento, no por píxeles: setHeight se ignora
+      // cuando la librería recalcula el layout (dejaba la brecha en una franja de 10 px).
       const panes = chart.panes();
-      if (capas.brecha && capas.estocastico) {
-        panes[1]?.setHeight(Math.round(altoPanel * 0.16));
-        panes[2]?.setHeight(Math.round(altoPanel * 0.22));
-      } else if (capas.brecha) {
-        panes[1]?.setHeight(Math.round(altoPanel * 0.20));
-      } else if (capas.estocastico) {
-        panes[1]?.setHeight(Math.round(altoPanel * 0.24));
+      if (panes.length > 2) {
+        panes[0].setStretchFactor(5);
+        panes[1].setStretchFactor(1.5);
+        panes[2].setStretchFactor(2);
+      } else if (panes.length > 1) {
+        panes[0].setStretchFactor(5);
+        panes[1].setStretchFactor(2);
       }
     };
     ajustar();

@@ -418,24 +418,40 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
     // En vez de fitContent() (que a veces deja la vista a medio camino cuando el gráfico
     // todavía se está midiendo), se fija explícitamente todo el rango de velas.
     const ajustar = () => {
+      // El ancho por vela hay que fijarlo a mano: si se deja el que trae la librería
+      // (barSpacing 6 y mínimo ~1,5), 820 velas no entran en ~950 px y las últimas quedan
+      // fuera de la vista —el gráfico parece terminar meses antes—. Con el ancho
+      // calculado, todas las velas entran exactas en el panel.
+      const ancho = caja.current?.clientWidth || 900;
+      const porVela = Math.max(0.6, ancho / visibles.length);
       try {
-        chart.timeScale().setVisibleLogicalRange({ from: -2, to: visibles.length + 1 });
+        chart.timeScale().applyOptions({ barSpacing: porVela, rightOffset: 0 });
+        chart.timeScale().setVisibleLogicalRange({ from: 0, to: visibles.length - 1 });
       } catch {
         chart.timeScale().fitContent();
       }
     };
     ajustar();
-    const t = window.setTimeout(ajustar, 50);
+    const r1 = window.requestAnimationFrame(ajustar);
+    const t = window.setTimeout(ajustar, 150);
     // handle de diagnóstico: permite comprobar qué se dibujó (no se usa en la interfaz)
+    (window as any).__chart = chart;
+    const datosSerie = serieVelas.data() as { time: number; close: number }[];
+    const rangoVisible = chart.timeScale().getVisibleLogicalRange();
     (window as any).__grafico = {
       intervalo,
       rango,
       velas: visibles.length,
       primera: visibles[0] ? new Date(visibles[0].time * 1000).toISOString() : null,
       ultima: visibles.length ? new Date(visibles[visibles.length - 1].time * 1000).toISOString() : null,
+      serie: datosSerie.length,
+      serieUltima: datosSerie.length ? new Date((datosSerie[datosSerie.length - 1].time as number) * 1000).toISOString() : null,
+      serieUltimoCierre: datosSerie.length ? datosSerie[datosSerie.length - 1].close : null,
+      rangoVisible,
     };
     return () => {
       window.clearTimeout(t);
+      window.cancelAnimationFrame(r1);
       chart.unsubscribeCrosshairMove(alMover);
       chart.remove();
     };
@@ -581,7 +597,7 @@ export const PriceChart: React.FC<Props> = ({ data }) => {
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-[10px] font-mono text-[#787b86]">
           <span>
-            Compra P2P (promedio de los 15 anuncios, 4 decimales) · velas de {etiquetaIntervalo} · hora de Bolivia · tramos 15m/1h/4h/1d y diario: dolarenbolivia.com 
+            Compra P2P (promedio de los 15 anuncios, 4 decimales) · velas de {etiquetaIntervalo} · hora local de tu navegador · tramos 15m/1h/4h/1d y diario: dolarenbolivia.com 
             {maximo !== null && minimo !== null && (
               <> · máx <span className="text-[#d1d4dc]">{maximo.toFixed(2)}</span> · mín <span className="text-[#d1d4dc]">{minimo.toFixed(2)}</span></>
             )}
